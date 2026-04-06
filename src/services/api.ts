@@ -1,184 +1,251 @@
 // src/services/api.ts
 
-import {
-  RiskProblemItem,
+import type {
+  LegacyRiskProblemApiShape,
+  RiskProblemEntity,
+  RiskProblemFormData,
   RiskProblemListResponse,
-  RiskProblemCreateRequest,
-} from "@/types/risk-problem";
+} from '@/types/risk-problem';
+import {
+  mapApiListToListItems,
+  mapFormToCreateRequest,
+  mapFormToUpdateRequest,
+  mapLegacyApiToEntity,
+} from '@/services/risk-problem.mapper';
 
-import { fetchWithTimeout, getAuthHeaders  } from "@/lib/http/client";
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
+function isBrowser(): boolean {
+  return typeof window !== 'undefined';
+}
 
-/**
- * CONFIGURAÇÃO
- * URL da API vem de variável de ambiente
- * Em desenvolvimento: http://localhost:5000
- * Em produção: https://api.seu-dominio.com
- */
+export function getAuthHeaders(extraHeaders?: HeadersInit): HeadersInit {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+  if (isBrowser()) {
+    const token = window.localStorage.getItem('token');
 
-/**
- * SERVIÇO DE RISCO/PROBLEMA
- * Centraliza todas as chamadas REST para a API
- * Padrão: cada método retorna Promise<T>
- */
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  }
+
+  if (extraHeaders instanceof Headers) {
+    extraHeaders.forEach((value, key) => {
+      headers[key] = value;
+    });
+  } else if (Array.isArray(extraHeaders)) {
+    for (const [key, value] of extraHeaders) {
+      headers[key] = value;
+    }
+  } else if (extraHeaders) {
+    Object.assign(headers, extraHeaders);
+  }
+
+  return headers;
+}
+
+async function extractErrorMessage(response: Response): Promise<string> {
+  const fallback =
+    response.statusText || `Falha na requisição (${response.status}).`;
+
+  try {
+    const contentType = response.headers.get('content-type') || '';
+
+    if (contentType.includes('application/json')) {
+      const payload = await response.json();
+
+      const message =
+        payload?.message ||
+        payload?.error ||
+        payload?.detail ||
+        payload?.errors?.message;
+
+      if (typeof message === 'string' && message.trim()) {
+        return message;
+      }
+
+      return fallback;
+    }
+
+    const text = await response.text();
+
+    if (text.trim()) {
+      return text;
+    }
+
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export async function handleJsonResponse<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    const message = await extractErrorMessage(response);
+    throw new Error(`Erro na API de riscos e problemas: ${message}`);
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  const text = await response.text();
+
+  if (!text.trim()) {
+    return undefined as T;
+  }
+
+  return JSON.parse(text) as T;
+}
+
+type ListFilters = {
+  natureza?: string;
+  status?: string;
+};
+
+type RawListResponse =
+  | unknown[]
+  | {
+      items?: unknown[];
+      data?: unknown[];
+      total?: number;
+      page?: number;
+      pageSize?: number;
+    };
+
+function buildListUrl(projectId: string, filters?: ListFilters): string {
+  const url = new URL(`${API_BASE_URL}/projects/${projectId}/risks-problems`);
+
+  if (filters?.natureza) {
+    url.searchParams.set('natureza', filters.natureza);
+  }
+
+  if (filters?.status) {
+    url.searchParams.set('status', filters.status);
+  }
+
+  return url.toString();
+}
+
+function buildItemUrl(projectId: string, itemId: string): string {
+  return `${API_BASE_URL}/projects/${projectId}/risks-problems/${itemId}`;
+}
 
 export const riskProblemService = {
-  /**
-   * Listar todos os itens de um projeto
-   * GET /api/projects/{projectId}/risks-problems
-   */
   async list(
     projectId: string,
-    filters?: { natureza?: string; status?: string }
+    filters?: ListFilters
   ): Promise<RiskProblemListResponse> {
-    try {
-      const params = new URLSearchParams();
-      if (filters?.natureza) params.append("natureza", filters.natureza);
-      if (filters?.status) params.append("status", filters.status);
+    const response = await fetch(buildListUrl(projectId, filters), {
+      method: 'GET',
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
 
-      const response = await fetch(
-        `${API_BASE_URL}/projects/${projectId}/risks-problems?${params}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
+    const payload = await handleJsonResponse<RawListResponse>(response);
 
-      if (!response.ok) {
-        throw new Error(`Erro ao listar: ${response.statusText}`);
-      }
+    if (Array.isArray(payload)) {
+      const items = mapApiListToListItems(payload);
 
-      return await response.json();
-    } catch (error) {
-      console.error("Erro em riskProblemService.list:", error);
-      throw error;
+      return {
+        items,
+        total: items.length,
+        page: 1,
+        pageSize: items.length,
+      };
     }
+
+    const rawItems = Array.isArray(payload?.items)
+      ? payload.items
+      : Array.isArray(payload?.data)
+      ? payload.data
+      : [];
+
+    const items = mapApiListToListItems(rawItems);
+
+    return {
+      items,
+      total:
+        typeof payload?.total === 'number' ? payload.total : items.length,
+      page: typeof payload?.page === 'number' ? payload.page : 1,
+      pageSize:
+        typeof payload?.pageSize === 'number'
+          ? payload.pageSize
+          : items.length,
+    };
   },
 
-  /**
-   * Criar novo item
-   * POST /api/projects/{projectId}/risks-problems
-   */
-  async create (
-    projectId: string, 
-    data: RiskProblemCreateRequest
-    ): Promise<RiskProblemItem> {
-    try {
-      console.log("📤 Enviando para backend:", JSON.stringify(data, null, 2));
+  async getById(
+    projectId: string,
+    itemId: string
+  ): Promise<RiskProblemEntity> {
+    const response = await fetch(buildItemUrl(projectId, itemId), {
+      method: 'GET',
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
 
-      const response = await fetchWithTimeout(
-        `${API_BASE_URL}/projects/${projectId}/risks-problems`,
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify(data),
-        });
+    const payload =
+      await handleJsonResponse<LegacyRiskProblemApiShape>(response);
 
-      if (!response.ok) {
-        const errorBody = await response.text();
-        console.error("❌ Resposta do backend:", errorBody);
-        throw new Error(`Erro ao criar: ${response.statusText} - ${errorBody}`);
-      }
-
-      const result = await response.json();
-      console.log("✅ Item criado com sucesso:", result);
-      return result;
-    } catch (error) {
-      console.error("Erro em riskProblemService.create:", error);
-      throw error;
-    }
+    return mapLegacyApiToEntity(payload);
   },
 
-  /**
-   * Atualizar item existente
-   * PUT /api/projects/{projectId}/risks-problems/{itemId}
-   */
+  async create(
+    projectId: string,
+    form: RiskProblemFormData
+  ): Promise<RiskProblemEntity> {
+    const body = mapFormToCreateRequest(form);
+
+    const response = await fetch(
+      `${API_BASE_URL}/projects/${projectId}/risks-problems`,
+      {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(body),
+      }
+    );
+
+    const payload =
+      await handleJsonResponse<LegacyRiskProblemApiShape>(response);
+
+    return mapLegacyApiToEntity(payload);
+  },
+
   async update(
     projectId: string,
     itemId: string,
-    data: Partial<RiskProblemItem>
-    ): Promise<RiskProblemItem> {
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/projects/${projectId}/risks-problems/${itemId}`,
-        {
-          method: "PUT",
-          headers: getAuthHeaders(),
-          body: JSON.stringify(data),
-        });
+    form: RiskProblemFormData,
+    original?: RiskProblemEntity
+  ): Promise<RiskProblemEntity> {
+    const body = mapFormToUpdateRequest(form, original);
 
-      if (!response.ok) {
-        throw new Error(`Erro ao atualizar: ${response.statusText}`);
-      }
+    const response = await fetch(buildItemUrl(projectId, itemId), {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(body),
+    });
 
-      return await response.json();
-    } catch (error) {
-      console.error("Erro em riskProblemService.update:", error);
-      throw error;
-    }
+    const payload =
+      await handleJsonResponse<LegacyRiskProblemApiShape>(response);
+
+    return mapLegacyApiToEntity(payload);
   },
 
-  /**
-   * Deletar item
-   * DELETE /api/projects/{projectId}/risks-problems/{itemId}
-   */
-  async remove(projectId: string, itemId: string): Promise<void> {
-    const url = `${API_BASE_URL}/projects/${projectId}/risks-problems/${itemId}`;
+  async delete(projectId: string, itemId: string): Promise<void> {
+    const response = await fetch(buildItemUrl(projectId, itemId), {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
 
-    console.log("DELETE URL:", url);
-    console.log("DELETE params:", { projectId, itemId });
-
-    try {
-      const response = await fetch(url, {
-        method: "DELETE",
-        // headers: getAuthHeaders(),
-      });
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        console.error("❌ Resposta do backend no delete:", errorBody);
-        throw new Error(`Erro ao deletar: ${response.statusText} - ${errorBody}`);
-      }
-    } catch (error) {
-      console.error("Erro em riskProblemService.delete:", error);
-      throw error;
+    if ([200, 202, 204].includes(response.status)) {
+      return;
     }
-},
 
-  /**
-   * Converter risco em problema
-   * POST /api/projects/{projectId}/risks-problems/{itemId}/convert-to-problem
-   */
-  async convertToProblem(
-    projectId: string,
-    itemId: string,
-    data: { urgencia: number; impacto_atual: number }
-  ): Promise<RiskProblemItem> {
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/projects/${projectId}/risks-problems/${itemId}/convert-to-problem`,
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify(data),
-        });
-
-      if (!response.ok) {
-        throw new Error(`Erro ao converter: ${response.statusText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error("Erro em riskProblemService.convertToProblem:", error);
-      throw error;
-    }
+    await handleJsonResponse<void>(response);
   },
 };
-
-//api.ts - Arquivo completo para o projeto SR-Risks
-
