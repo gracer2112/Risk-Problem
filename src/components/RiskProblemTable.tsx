@@ -1,35 +1,127 @@
 // src/components/RiskProblemTable.tsx
 
-"use client";
+'use client';
 
-import { RiskProblemItem } from "@/types/risk-problem";
-import { Badge } from "./Badge";
-
-/**
- * PROPS - Interface para tipagem
- */
+import { NaturezaAtualEnum } from '@/types/risk-problem';
+import type { RiskProblemListItem } from '@/types/risk-problem';
 
 interface RiskProblemTableProps {
-  items: RiskProblemItem[];
-  onEdit: (item: RiskProblemItem) => void;
+  items: RiskProblemListItem[];
+  onEdit: (item: RiskProblemListItem) => void;
   onDelete: (itemId: string) => void;
   loading?: boolean;
 }
 
-/**
- * COMPONENTE: RiskProblemTable
- * 
- * Exibe uma tabela com todos os itens de Risco/Problema
- * Padrão: Componente "burro" (dumb component) — só recebe props e renderiza
- * 
- * Exemplo de uso:
- * <RiskProblemTable 
- *   items={items} 
- *   onEdit={handleEdit} 
- *   onDelete={handleDelete}
- *   loading={loading}
- * />
- */
+function formatLabel(value?: string | null): string {
+  if (!value) {
+    return '-';
+  }
+
+  return value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function formatDate(dateString?: string | null): string {
+  if (!dateString) {
+    return '-';
+  }
+
+  const date = new Date(dateString);
+
+  if (Number.isNaN(date.getTime())) {
+    return dateString;
+  }
+
+  return date.toLocaleDateString('pt-BR');
+}
+
+function startOfDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function calculateDelay(targetDate?: string | null): number {
+  if (!targetDate) {
+    return 0;
+  }
+
+  const target = new Date(targetDate);
+
+  if (Number.isNaN(target.getTime())) {
+    return 0;
+  }
+
+  const todayStart = startOfDay(new Date());
+  const targetStart = startOfDay(target);
+
+  const diffTime = todayStart.getTime() - targetStart.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+  return diffDays > 0 ? diffDays : 0;
+}
+
+function getNaturezaBadgeClass(natureza_atual: NaturezaAtualEnum): string {
+  if (natureza_atual === NaturezaAtualEnum.RISCO) {
+    return 'border-amber-200 bg-amber-100 text-amber-800';
+  }
+
+  return 'border-rose-200 bg-rose-100 text-rose-800';
+}
+
+function getStatusBadgeClass(status_operacional?: string | null): string {
+  switch (status_operacional) {
+    case 'identificado':
+    case 'aberto':
+      return 'border-slate-200 bg-slate-100 text-slate-800';
+
+    case 'em_analise':
+    case 'em_tratamento':
+    case 'aguardando_terceiro':
+    case 'aguardando_validacao':
+      return 'border-blue-200 bg-blue-100 text-blue-800';
+
+    case 'plano_acao_definido':
+    case 'em_monitoramento':
+      return 'border-violet-200 bg-violet-100 text-violet-800';
+
+    case 'mitigado':
+    case 'resolvido':
+      return 'border-emerald-200 bg-emerald-100 text-emerald-800';
+
+    case 'encerrado':
+      return 'border-gray-200 bg-gray-100 text-gray-700';
+
+    default:
+      return 'border-gray-200 bg-gray-100 text-gray-700';
+  }
+}
+
+function getTextOrDash(value?: string | null): string {
+  if (!value || !value.trim()) {
+    return '-';
+  }
+
+  return value;
+}
+
+function renderClassification(item: RiskProblemListItem): string | number {
+  if (
+    item.classificacao_atual === null ||
+    item.classificacao_atual === undefined ||
+    item.classificacao_atual === ''
+  ) {
+    return '-';
+  }
+
+  return item.classificacao_atual;
+}
+
+function getClassificationLabel(item: RiskProblemListItem): string {
+  return item.natureza_atual === NaturezaAtualEnum.RISCO
+    ? 'Risco residual'
+    : 'Prioridade';
+}
 
 export function RiskProblemTable({
   items,
@@ -37,172 +129,181 @@ export function RiskProblemTable({
   onDelete,
   loading = false,
 }: RiskProblemTableProps) {
-  // ===== ESTADO DE CARREGAMENTO =====
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        <span className="ml-4 text-gray-600">Carregando...</span>
+      <div
+        className="flex items-center justify-center py-12"
+        aria-live="polite"
+      >
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600" />
+        <span className="ml-4 text-sm text-gray-600">Carregando itens...</span>
       </div>
     );
   }
 
-  // ===== ESTADO VAZIO =====
   if (items.length === 0) {
     return (
-      <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
-        <p className="text-gray-500 text-lg">
+      <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center">
+        <p className="text-lg font-medium text-gray-700">
           Nenhum risco ou problema registrado
         </p>
-        <p className="text-gray-400 text-sm mt-2">
-          Clique em "Adicionar" para criar o primeiro item
+        <p className="mt-2 text-sm text-gray-500">
+          Clique em <strong>Novo item</strong> para iniciar o cadastro.
         </p>
       </div>
     );
   }
 
-  // ===== FUNÇÃO AUXILIAR: Formatar Data =====
-  const formatDate = (dateString: string): string => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString("pt-BR");
-    } catch {
-      return dateString;
-    }
-  };
-
-  // ===== FUNÇÃO AUXILIAR: Calcular Atraso =====
-  const calculateDelay = (targetDate: string): number => {
-    const today = new Date();
-    const target = new Date(targetDate);
-    const diffTime = today.getTime() - target.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays > 0 ? diffDays : 0;
-  };
-
-  // ===== RENDERIZAÇÃO =====
   return (
-    <div className="overflow-x-auto shadow-md rounded-lg">
-      <table className="w-full border-collapse bg-white">
-        {/* CABEÇALHO */}
-        <thead>
-          <tr className="bg-blue-600 text-white">
-            <th className="px-6 py-4 text-left text-sm font-semibold">
-              Natureza
-            </th>
-            <th className="px-6 py-4 text-left text-sm font-semibold">
-              Título
-            </th>
-            <th className="px-6 py-4 text-left text-sm font-semibold">
-              Severidade
-            </th>
-            <th className="px-6 py-4 text-left text-sm font-semibold">
-              Agente
-            </th>
-            <th className="px-6 py-4 text-left text-sm font-semibold">
-              Data Alvo
-            </th>
-            <th className="px-6 py-4 text-left text-sm font-semibold">
-              Status
-            </th>
-            <th className="px-6 py-4 text-center text-sm font-semibold">
-              Atraso
-            </th>
-            <th className="px-6 py-4 text-center text-sm font-semibold">
-              Ações
-            </th>
-          </tr>
-        </thead>
-
-        {/* CORPO */}
-        <tbody>
-          {items.map((item, index) => {
-            const delay = calculateDelay(item.data_alvo_solucao || "");
-            const isDelayed = delay > 0;
-
-            return (
-              <tr
-                key={item.id}
-                className={`border-b transition-colors hover:bg-gray-50 ${
-                  index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                }`}
+    <div className="overflow-hidden rounded-xl border border-gray-200">
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-white">
+          <thead className="bg-gray-50">
+            <tr className="text-left">
+              <th
+                scope="col"
+                className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600"
               >
-                {/* Natureza */}
-                <td className="px-6 py-4">
-                  <Badge type="natureza" value={item.natureza_atual} />
-                </td>
+                Natureza
+              </th>
+              <th
+                scope="col"
+                className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600"
+              >
+                Descrição
+              </th>
+              <th
+                scope="col"
+                className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600"
+              >
+                Classificação atual
+              </th>
+              <th
+                scope="col"
+                className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600"
+              >
+                Agente de solução
+              </th>
+              <th
+                scope="col"
+                className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600"
+              >
+                Data alvo
+              </th>
+              <th
+                scope="col"
+                className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600"
+              >
+                Status
+              </th>
+              <th
+                scope="col"
+                className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-600"
+              >
+                Ações
+              </th>
+            </tr>
+          </thead>
 
-                {/* Título */}
-                <td className="px-6 py-4">
-                  <p className="font-medium text-gray-900 truncate max-w-xs">
-                    {item.titulo}
-                  </p>
-                </td>
+          <tbody className="divide-y divide-gray-200">
+            {items.map((item) => {
+              const delayDays = calculateDelay(item.data_alvo_solucao);
+              const isDelayed = delayDays > 0;
 
-                {/* Severidade */}
-                <td className="px-6 py-4">
-                  <Badge type="severidade" value={item.severidade ??null} />
-                </td>
-
-                {/* Agente */}
-                <td className="px-6 py-4 text-sm text-gray-700">
-                  {item.agente_solucao}
-                </td>
-
-                {/* Data Alvo */}
-                <td className="px-6 py-4 text-sm text-gray-700">
-                  {formatDate(item.data_alvo_solucao || "")}
-                </td>
-
-                {/* Status */}
-                <td className="px-6 py-4">
-                  <Badge type="status" value={item.status_operacional ?? null} />
-                </td>
-
-                {/* Atraso */}
-                <td className="px-6 py-4 text-center">
-                  {isDelayed ? (
-                    <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold bg-red-100 text-red-800">
-                      {delay}d
+              return (
+                <tr
+                  key={item.id}
+                  className="transition-colors hover:bg-gray-50"
+                >
+                  <td className="px-4 py-4 align-top">
+                    <span
+                      className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${getNaturezaBadgeClass(
+                        item.natureza_atual
+                      )}`}
+                    >
+                      {formatLabel(item.natureza_atual)}
                     </span>
-                  ) : (
-                    <span className="text-gray-400 text-sm">—</span>
-                  )}
-                </td>
+                  </td>
 
-                {/* Ações */}
-                <td className="px-6 py-4 text-center">
-                  <div className="flex justify-center gap-2">
-                    <button
-                      onClick={() => onEdit(item)}
-                      className="px-3 py-1 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                      title="Editar item"
+                  <td className="max-w-md px-4 py-4 align-top">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-gray-900">
+                        {getTextOrDash(item.descricao)}
+                      </p>
+                      <p className="text-xs text-gray-500">ID: {item.id}</p>
+                    </div>
+                  </td>
+
+                  <td className="px-4 py-4 align-top">
+                    <div className="space-y-1">
+                      <span className="block text-xs text-gray-500">
+                        {getClassificationLabel(item)}
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {renderClassification(item)}
+                      </span>
+                    </div>
+                  </td>
+
+                  <td className="px-4 py-4 align-top">
+                    <span className="text-sm text-gray-700">
+                      {getTextOrDash(item.agente_solucao)}
+                    </span>
+                  </td>
+
+                  <td className="px-4 py-4 align-top">
+                    <div className="space-y-1">
+                      <span className="block text-sm text-gray-700">
+                        {formatDate(item.data_alvo_solucao)}
+                      </span>
+
+                      {isDelayed && (
+                        <span className="inline-flex rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                          {delayDays} dia{delayDays > 1 ? 's' : ''} de atraso
+                        </span>
+                      )}
+                    </div>
+                  </td>
+
+                  <td className="px-4 py-4 align-top">
+                    <span
+                      className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${getStatusBadgeClass(
+                        item.status_operacional
+                      )}`}
                     >
-                      ✏️ Editar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (
-                          window.confirm(
-                            "Tem certeza que deseja deletar este item?"
-                          )
-                        ) {
-                          onDelete(item.id);
-                        }
-                      }}
-                      className="px-3 py-1 text-sm font-medium text-red-600 hover:bg-red-50 rounded transition-colors"
-                      title="Deletar item"
-                    >
-                      🗑️ Deletar
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                      {formatLabel(item.status_operacional)}
+                    </span>
+                  </td>
+
+                  <td className="px-4 py-4 align-top">
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onEdit(item)}
+                        aria-label={`Editar item ${item.id}`}
+                        className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
+                      >
+                        Editar
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => onDelete(item.id)}
+                        aria-label={`Excluir item ${item.id}`}
+                        className="rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-700 transition hover:bg-red-50"
+                      >
+                        Excluir
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
+
+export default RiskProblemTable;
