@@ -5,8 +5,14 @@
 import { useEffect, useState } from "react";
 import { useRiskProblems } from "@/hooks/useRiskProblems";
 import { RiskProblemTable } from "@/components/RiskProblemTable";
-import { RiskProblemItem,RiskProblemCreateRequest} from "@/types/risk-problem";
-import RiskProblemDrawer from "@/components/RiskProblemDrawer"; 
+import RiskProblemDrawer from "@/components/RiskProblemDrawer";
+import {
+  NaturezaAtualEnum,
+  type ConvertRiskToProblemRequest,
+  type RiskProblemEntity,
+  type RiskProblemFormData,
+  type RiskProblemListItem,
+} from "@/types/risk-problem";
 
 /**
  * PÁGINA: Riscos e Problemas
@@ -24,11 +30,34 @@ export default function RisksProblemsPage() {
   const PROJECT_ID = "1";
 
   // ===== ESTADO =====
-  const { items, loading, error, loadItems, createItem, updateItem, deleteItem } =
-    useRiskProblems(PROJECT_ID);
-  const [selectedItem, setSelectedItem] = useState<RiskProblemItem | null>(
+  const {
+    items,
+    loading,
+    error,
+    loadItems,
+    createItem,
+    updateItem,
+    convertToProblem,
+    deleteItem,
+  } = useRiskProblems(PROJECT_ID);
+
+  function getNumericClassification(item: RiskProblemListItem): number | null {
+    if (typeof item.classificacao_atual === "number") {
+      return item.classificacao_atual;
+    }
+
+    if (typeof item.classificacao_atual === "string") {
+      const parsed = Number(item.classificacao_atual);
+      return Number.isNaN(parsed) ? null : parsed;
+    }
+
+    return null;
+  }  
+
+  const [selectedItem, setSelectedItem] = useState<RiskProblemEntity | null>(
     null
   );
+
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   // Estado para filtro (no topo do componente, como regra de hooks)
@@ -36,49 +65,75 @@ export default function RisksProblemsPage() {
 
   // ===== EFEITO: Carregar itens ao montar =====
   useEffect(() => {
-    loadItems();
-  }, []);
+    void loadItems();
+  }, [loadItems]);
 
     // ===== FILTRO: Itens filtrados baseado no estado =====
   const filteredItems = items.filter((item) => {
     if (filterMode === "all") return true;
-    if (filterMode === "risco") return item.natureza_atual === "risco"; // Assumindo string do enum
-    if (filterMode === "problema") return item.natureza_atual === "problema";
-    if (filterMode === "crítico") return item.severidade === "critica";
-    if (filterMode === "atrasado") {
-      if (!item.data_alvo_solucao) return false; // Se não tem prazo, não é atrasado
-        const prazoDate = new Date(item.data_alvo_solucao); // Converte string para Date
-        const hoje = new Date(); // Data atual
-      return prazoDate < hoje; // Compara Dates corretamente (erro 2365 resolvido)
-    }  // Exemplo: itens atrasados têm data de solução no passado
-    if (filterMode === "média") {
-      if (!item.prioridade) return false; 
-        const prioridade = item.prioridade;
-      return prioridade >= 30 && prioridade < 60; // Exemplo: itens de prioridade média
+
+    if (filterMode === "risco") {
+      return item.natureza_atual === NaturezaAtualEnum.RISCO;
     }
+
+    if (filterMode === "problema") {
+      return item.natureza_atual === NaturezaAtualEnum.PROBLEMA;
+    }
+
+    if (filterMode === "crítico") {
+      const score = getNumericClassification(item);
+      return score !== null && score >= 60;
+    }
+
+    if (filterMode === "atrasado") {
+      if (!item.data_alvo_solucao) return false;
+
+      const prazoDate = new Date(item.data_alvo_solucao);
+      const hoje = new Date();
+
+      return prazoDate < hoje;
+    }
+
+    if (filterMode === "média") {
+      const score = getNumericClassification(item);
+      return score !== null && score >= 30 && score < 60;
+    }
+
     return true;
   });
 
-  const handleSave = async (data: Partial<RiskProblemItem>) => {
+  const handleSave = async (
+    form: RiskProblemFormData,
+    original?: RiskProblemEntity
+  ): Promise<void> => {
     try {
-      console.log("handleSave chamado com:", data);
+      const savedEntity = original?.id
+        ? await updateItem(original.id, form, original)
+        : await createItem(form);
 
-      if (selectedItem?.id) {
-        await updateItem(selectedItem.id, data);
-      } else {
-        const created = await createItem(data as RiskProblemCreateRequest);
-        console.log("Criado no handleSave:", created);
-      }
-
-      handleCloseDrawer();
-
+      setSelectedItem(savedEntity);
     } catch (error) {
       console.error("Erro ao salvar:", error);
+      throw error;
+    }
+  };
+
+  const handleConvertToProblem = async (
+    item: RiskProblemEntity,
+    payload: ConvertRiskToProblemRequest
+  ): Promise<RiskProblemEntity> => {
+    try {
+      const convertedEntity = await convertToProblem(item.id, payload);
+      setSelectedItem(convertedEntity);
+      return convertedEntity;
+    } catch (error) {
+      console.error("Erro ao converter risco em problema:", error);
+      throw error;
     }
   };
 
   // ===== HANDLERS =====
-  const handleEdit = (item: RiskProblemItem) => {
+  const handleEdit = (item: RiskProblemListItem) => {
     setSelectedItem(item);
     setIsDrawerOpen(true);
   };
@@ -92,7 +147,6 @@ export default function RisksProblemsPage() {
     try {
       await deleteItem(itemId);
       // Toast de sucesso (vamos adicionar depois)
-      console.log("Item deletado com sucesso");
     } catch (err) {
       console.error("Erro ao deletar:", err);
       // Toast de erro (vamos adicionar depois)
@@ -107,31 +161,25 @@ export default function RisksProblemsPage() {
   // Handler para filtro (sem hooks internos!)
   const handleFilterMedio = () => {
     setFilterMode("média"); // Atualiza o estado - simples e correto
-    console.log("Filtro ativado para prioridade"); // Debug
   };
 
   const handleFilterAtrasados = () => {
     setFilterMode("atrasado");
-    console.log("Filtro ativado para atrasados"); // Debug
   };
 
   const handleFilterCritical = () => {
     setFilterMode("crítico"); // Atualiza o estado - simples e correto
-    console.log("Filtro ativado para críticos"); // Debug
   };
   const handleFilterRisks = () => {
     setFilterMode("risco"); // Atualiza o estado - simples e correto
-    console.log("Filtro ativado para riscos"); // Debug
   };
 
   const handleFilterProblems = () => {
     setFilterMode("problema");
-    console.log("Filtro ativado para problemas");
   };
 
   const handleClearFilter = () => {
     setFilterMode("all");
-    console.log("Filtro limpo - todos os itens");
   };
 
 
@@ -258,21 +306,26 @@ export default function RisksProblemsPage() {
             <div className="bg-white p-6 rounded-lg shadow">
               <p className="text-gray-600 text-sm font-medium">Riscos</p>
               <p className="text-3xl font-bold text-orange-600 mt-2">
-                {items.filter((i) => i.natureza_atual === "risco").length}
+                  {items.filter((i) => i.natureza_atual === NaturezaAtualEnum.RISCO).length}
               </p>
             </div>
 
             <div className="bg-white p-6 rounded-lg shadow">
               <p className="text-gray-600 text-sm font-medium">Problemas</p>
               <p className="text-3xl font-bold text-red-600 mt-2">
-                {items.filter((i) => i.natureza_atual === "problema").length}
+                  {items.filter((i) => i.natureza_atual === NaturezaAtualEnum.PROBLEMA).length}
               </p>
             </div>
 
             <div className="bg-white p-6 rounded-lg shadow">
               <p className="text-gray-600 text-sm font-medium">Críticos</p>
               <p className="text-3xl font-bold text-red-700 mt-2">
-                {items.filter((i) => i.severidade === "critica").length}
+                  {
+                    items.filter((i) => {
+                      const score = getNumericClassification(i);
+                      return score !== null && score >= 60;
+                    }).length
+                  }
               </p>
             </div>
           </div>
@@ -286,6 +339,7 @@ export default function RisksProblemsPage() {
           item={selectedItem}
           onClose={handleCloseDrawer}
           onSave={handleSave}
+          onConvertToProblem={handleConvertToProblem}
         />
       )}
     </div>

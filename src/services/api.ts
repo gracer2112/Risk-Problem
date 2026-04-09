@@ -1,11 +1,14 @@
 // src/services/api.ts
 
 import type {
+  ConvertRiskToProblemRequest,
+  ConvertRiskToProblemResponse,
   LegacyRiskProblemApiShape,
   RiskProblemEntity,
   RiskProblemFormData,
   RiskProblemListResponse,
 } from '@/types/risk-problem';
+
 import {
   mapApiListToListItems,
   mapFormToCreateRequest,
@@ -135,6 +138,13 @@ function buildItemUrl(projectId: string, itemId: string): string {
   return `${API_BASE_URL}/projects/${projectId}/risks-problems/${itemId}`;
 }
 
+function buildConvertToProblemUrl(
+  projectId: string,
+  itemId: string
+): string {
+  return `${API_BASE_URL}/projects/${projectId}/risks-problems/${itemId}/convert-to-problem`;
+}
+
 export const riskProblemService = {
   async list(
     projectId: string,
@@ -234,6 +244,23 @@ export const riskProblemService = {
       await handleJsonResponse<LegacyRiskProblemApiShape>(response);
 
     return mapLegacyApiToEntity(payload);
+  },
+
+  async convertRiskToProblem(
+    projectId: string,
+    itemId: string,
+    payload: ConvertRiskToProblemRequest
+  ): Promise<ConvertRiskToProblemResponse> {
+    const response = await fetch(buildConvertToProblemUrl(projectId, itemId), {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+
+    const raw =
+      await handleJsonResponse<LegacyRiskProblemApiShape>(response);
+
+    return mapLegacyApiToEntity(raw);
   },
 
   async delete(projectId: string, itemId: string): Promise<void> {

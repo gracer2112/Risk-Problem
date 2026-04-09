@@ -3,22 +3,31 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+
 import {
   TipoInicialEnum,
   NaturezaAtualEnum,
   StatusRiscoEnum,
   StatusProblemaEnum,
-  RiskProblemEntity,
-  RiskProblemFormData,
+  type ConvertRiskToProblemFormData,
+  type ConvertRiskToProblemRequest,
+  type RiskProblemEntity,
+  type RiskProblemFormData,
+  type SimNaoValue,
   buildInitialFormData,
   calcularNivelRiscoInerente,
   calcularNivelRiscoResidual,
   calcularPrioridadeProblema,
 } from '@/types/risk-problem';
+
 import {
-  validateRiskProblem,
   getVisibilityRules,
-} from '@/utils/risk-problem-validation';
+  validateConvertToProblemForm,
+  validateRiskProblem,
+} from '@/utils/drawer-validation';
+
+import { canConvertRiskToProblem } from '@/utils/risk-problem-domain';
+
 
 interface RiskProblemDrawerProps {
   isOpen: boolean;
@@ -28,6 +37,10 @@ interface RiskProblemDrawerProps {
     form: RiskProblemFormData,
     original?: RiskProblemEntity
   ) => Promise<void>;
+  onConvertToProblem?: (
+    item: RiskProblemEntity,
+    payload: ConvertRiskToProblemRequest
+  ) => Promise<RiskProblemEntity>;
   loading?: boolean;
 }
 
@@ -140,22 +153,84 @@ function FieldError({ message }: { message?: string }) {
   return <p className="mt-1 text-sm text-red-600">{message}</p>;
 }
 
+function normalizeDateTimeLocalInputValue(value?: string | null): string {
+  if (!value) {
+    const now = new Date();
+    const localNow = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+    return localNow.toISOString().slice(0, 16);
+  }
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    const now = new Date();
+    const localNow = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+    return localNow.toISOString().slice(0, 16);
+  }
+
+  const localDate = new Date(
+    parsed.getTime() - parsed.getTimezoneOffset() * 60000
+  );
+
+  return localDate.toISOString().slice(0, 16);
+}
+
+function toIsoFromDateTimeLocal(value: string): string {
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return parsed.toISOString();
+}
+
+function buildInitialConvertFormData(
+  item?: RiskProblemEntity | null
+): ConvertRiskToProblemFormData {
+  return {
+    transitionedAt: normalizeDateTimeLocalInputValue(
+      item?.convertido_em_problema_em ??
+        item?.data_transicao_problema ??
+        null
+    ),
+    transitionReason: item?.motivo_transicao ?? '',
+    controlApplied: item?.controle_aplicado ?? 'nao',
+    controlEffective: item?.controle_efetivo ?? 'nao',
+  };
+}
+
 export default function RiskProblemDrawer({
   isOpen,
   item,
   onClose,
   onSave,
+  onConvertToProblem,
   loading = false,
 }: RiskProblemDrawerProps) {
+
   const [formData, setFormData] = useState<RiskProblemFormData>(
     buildInitialFormData(TipoInicialEnum.RISCO)
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+  const [isConvertMode, setIsConvertMode] = useState(false);
+  const [convertForm, setConvertForm] =
+    useState<ConvertRiskToProblemFormData>(
+      buildInitialConvertFormData(item)
+    );
+  const [convertErrors, setConvertErrors] = useState<Record<string, string>>(
+    {}
+  );
   const isEditing = Boolean(item);
   const isBusy = isSubmitting || loading;
+
+  const canShowConvertAction = Boolean(
+    item && onConvertToProblem && canConvertRiskToProblem(item)
+  );
+
+
 
   useEffect(() => {
     if (!isOpen) {
@@ -171,6 +246,10 @@ export default function RiskProblemDrawer({
     setErrors({});
     setSubmitError(null);
     setIsSubmitting(false);
+    setIsConvertMode(false);
+    setConvertForm(buildInitialConvertFormData(item));
+    setConvertErrors({});
+
   }, [isOpen, item]);
 
   const visibility = useMemo(
@@ -212,6 +291,30 @@ export default function RiskProblemDrawer({
       ),
     [formData.impacto_realizado, formData.urgencia_solucao]
   );
+
+  const updateConvertField = <K extends keyof ConvertRiskToProblemFormData>(
+    field: K,
+    value: ConvertRiskToProblemFormData[K]
+  ) => {
+    setConvertForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+
+    setConvertErrors((prev) => {
+      if (!prev[field as string]) {
+        return prev;
+      }
+
+      const next = { ...prev };
+      delete next[field as string];
+      return next;
+    });
+
+    if (submitError) {
+      setSubmitError(null);
+    }
+  };
 
   const updateField = <K extends keyof RiskProblemFormData>(
     field: K,
@@ -262,6 +365,41 @@ export default function RiskProblemDrawer({
   const handleOverlayClick = () => {
     if (!isBusy) {
       onClose();
+    }
+  };
+
+  const handleConvertSubmit = async () => {
+    if (!item || !onConvertToProblem) {
+      return;
+    }
+
+    setSubmitError(null);
+
+    const validation = validateConvertToProblemForm(convertForm);
+
+    if (!validation.isValid) {
+      setConvertErrors(validation.errors);
+      return;
+    }
+
+    setConvertErrors({});
+    setIsSubmitting(true);
+
+    try {
+      await onConvertToProblem(item, {
+        ...convertForm,
+        transitionedAt: toIsoFromDateTimeLocal(convertForm.transitionedAt),
+      });
+
+      setIsConvertMode(false);
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : 'Não foi possível converter o risco em problema.'
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -336,6 +474,159 @@ export default function RiskProblemDrawer({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6 px-6 py-6">
+            {canShowConvertAction && (
+            <section className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-amber-800">
+                    Conversão de risco em problema
+                  </h3>
+                  <p className="mt-1 text-sm text-amber-700">
+                    Use esta ação quando o risco tiver se materializado e passar
+                    a demandar tratamento operacional.
+                  </p>
+                </div>
+
+                {!isConvertMode ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsConvertMode(true)}
+                    disabled={isBusy}
+                    className="rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Converter em problema
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsConvertMode(false);
+                      setConvertErrors({});
+                      setSubmitError(null);
+                      setConvertForm(buildInitialConvertFormData(item));
+                    }}
+                    disabled={isBusy}
+                    className="rounded-md border border-amber-300 bg-white px-4 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Cancelar conversão
+                  </button>
+                )}
+              </div>
+
+              {isConvertMode && (
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <label
+                      htmlFor="transitionedAt"
+                      className="mb-1 block text-sm font-medium text-gray-700"
+                    >
+                      Data da transição
+                    </label>
+                    <input
+                      id="transitionedAt"
+                      type="datetime-local"
+                      value={convertForm.transitionedAt}
+                      onChange={(event) =>
+                        updateConvertField(
+                          'transitionedAt',
+                          event.target.value
+                        )
+                      }
+                      disabled={isBusy}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 md:w-80"
+                    />
+                    <FieldError message={convertErrors.transitionedAt} />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="transitionReason"
+                      className="mb-1 block text-sm font-medium text-gray-700"
+                    >
+                      Motivo da transição
+                    </label>
+                    <textarea
+                      id="transitionReason"
+                      rows={3}
+                      value={convertForm.transitionReason}
+                      onChange={(event) =>
+                        updateConvertField(
+                          'transitionReason',
+                          event.target.value
+                        )
+                      }
+                      disabled={isBusy}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+                    />
+                    <FieldError message={convertErrors.transitionReason} />
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                      <label
+                        htmlFor="controlApplied"
+                        className="mb-1 block text-sm font-medium text-gray-700"
+                      >
+                        Havia controle aplicado?
+                      </label>
+                      <select
+                        id="controlApplied"
+                        value={convertForm.controlApplied}
+                        onChange={(event) =>
+                          updateConvertField(
+                            'controlApplied',
+                            event.target.value as SimNaoValue
+                          )
+                        }
+                        disabled={isBusy}
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+                      >
+                        <option value="sim">Sim</option>
+                        <option value="nao">Não</option>
+                      </select>
+                      <FieldError message={convertErrors.controlApplied} />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="controlEffective"
+                        className="mb-1 block text-sm font-medium text-gray-700"
+                      >
+                        O controle era efetivo?
+                      </label>
+                      <select
+                        id="controlEffective"
+                        value={convertForm.controlEffective}
+                        onChange={(event) =>
+                          updateConvertField(
+                            'controlEffective',
+                            event.target.value as SimNaoValue
+                          )
+                        }
+                        disabled={isBusy}
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+                      >
+                        <option value="sim">Sim</option>
+                        <option value="nao">Não</option>
+                      </select>
+                      <FieldError message={convertErrors.controlEffective} />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleConvertSubmit}
+                      disabled={isBusy}
+                      className="rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isBusy ? 'Convertendo...' : 'Confirmar conversão'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
           <section className="rounded-lg border border-gray-200 p-4">
             <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-600">
               Classificação

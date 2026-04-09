@@ -3,11 +3,14 @@
 'use client';
 
 import { useCallback, useState } from 'react';
+
 import type {
+  ConvertRiskToProblemRequest,
   RiskProblemEntity,
   RiskProblemFormData,
   RiskProblemListItem,
 } from '@/types/risk-problem';
+
 import { riskProblemService } from '@/services/api';
 import { mapEntityToListItem } from '@/services/risk-problem.mapper';
 
@@ -27,6 +30,10 @@ type UseRiskProblemsReturn = {
     itemId: string,
     form: RiskProblemFormData,
     original?: RiskProblemEntity
+  ) => Promise<RiskProblemEntity>;
+  convertToProblem: (
+    itemId: string,
+    payload: ConvertRiskToProblemRequest
   ) => Promise<RiskProblemEntity>;
   deleteItem: (itemId: string) => Promise<void>;
   clearError: () => void;
@@ -54,6 +61,22 @@ export function useRiskProblems(projectId: string): UseRiskProblemsReturn {
     setError(message);
   }, []);
 
+  const upsertListItem = useCallback((entity: RiskProblemEntity) => {
+    const nextListItem = mapEntityToListItem(entity);
+
+    setItems((prev) => {
+      const exists = prev.some((item) => item.id === entity.id);
+
+      if (!exists) {
+        return [nextListItem, ...prev];
+      }
+
+      return prev.map((item) =>
+        item.id === entity.id ? nextListItem : item
+      );
+    });
+  }, []);
+  
   const loadItems = useCallback(
     async (filters?: ListFilters): Promise<void> => {
       setLoading(true);
@@ -98,17 +121,15 @@ export function useRiskProblems(projectId: string): UseRiskProblemsReturn {
 
       try {
         const createdEntity = await riskProblemService.create(projectId, form);
-        const createdListItem = mapEntityToListItem(createdEntity);
-
-        setItems((prev) => [createdListItem, ...prev]);
-
+        upsertListItem(createdEntity);
         return createdEntity;
+
       } catch (err) {
         setHandledError(err, 'Não foi possível criar o item.');
         throw err;
       }
     },
-    [projectId, setHandledError]
+    [projectId, setHandledError,upsertListItem]
   );
 
   const updateItem = useCallback(
@@ -127,19 +148,45 @@ export function useRiskProblems(projectId: string): UseRiskProblemsReturn {
           original
         );
 
-        const updatedListItem = mapEntityToListItem(updatedEntity);
-
-        setItems((prev) =>
-          prev.map((item) => (item.id === itemId ? updatedListItem : item))
-        );
+        upsertListItem(updatedEntity);
 
         return updatedEntity;
+
       } catch (err) {
         setHandledError(err, 'Não foi possível atualizar o item.');
         throw err;
       }
     },
-    [projectId, setHandledError]
+    [projectId, setHandledError, upsertListItem]
+  );
+
+  const convertToProblem = useCallback(
+    async (
+      itemId: string,
+      payload: ConvertRiskToProblemRequest
+    ): Promise<RiskProblemEntity> => {
+      setError(null);
+
+      try {
+        const convertedEntity =
+          await riskProblemService.convertRiskToProblem(
+            projectId,
+            itemId,
+            payload
+          );
+
+        upsertListItem(convertedEntity);
+
+        return convertedEntity;
+      } catch (err) {
+        setHandledError(
+          err,
+          'Não foi possível converter o risco em problema.'
+        );
+        throw err;
+      }
+    },
+    [projectId, setHandledError, upsertListItem]
   );
 
   const deleteItem = useCallback(
@@ -166,7 +213,9 @@ export function useRiskProblems(projectId: string): UseRiskProblemsReturn {
     getItemById,
     createItem,
     updateItem,
+    convertToProblem,
     deleteItem,
     clearError,
   };
+
 }

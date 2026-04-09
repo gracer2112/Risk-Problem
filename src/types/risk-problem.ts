@@ -53,6 +53,23 @@ export type StatusOperacional =
   | StatusRiscoEnum
   | StatusProblemaEnum;
 
+export type SimNaoValue = 'sim' | 'nao';
+
+export type ConvertRiskToProblemRequest = {
+  transitionedAt: string;
+  transitionReason: string;
+  controlApplied: SimNaoValue;
+  controlEffective: SimNaoValue;
+  updatedBy?: string;
+};
+
+export type ConvertRiskToProblemFormData = {
+  transitionedAt: string;
+  transitionReason: string;
+  controlApplied: SimNaoValue;
+  controlEffective: SimNaoValue;
+};
+
 /*
  * TIPOS AUXILIARES
  */
@@ -86,12 +103,14 @@ export interface HistoricoEvento {
 
 export interface RiskProblemBase {
   id: string;
+  projeto_id?: number | null;
   tipo_inicial: TipoInicialEnum;
   natureza_atual: NaturezaAtualEnum;
   status_operacional: StatusOperacional;
   origem?: OrigemItemEnum;
   data_entrada?: string | null;
 
+  titulo?: string | null;
   descricao: string;
   causa_raiz: string;
   descricao_impacto: string;
@@ -121,17 +140,18 @@ export interface ProblemAssessmentFields {
 }
 
 export interface TransitionFields {
+  convertido_em_problema_em?: string | null;
   data_transicao_problema?: string | null;
   motivo_transicao?: string | null;
-  controle_aplicado?: boolean | null;
-  controle_efetivo?: boolean | null;
+  controle_aplicado?: SimNaoValue | null;
+  controle_efetivo?: SimNaoValue | null;
 }
 
 /*
  * ENTIDADE PRINCIPAL
  */
 
-export interface RiskProblemEntity
+export interface RiskProblemItem
   extends RiskProblemBase,
     RiskAssessmentFields,
     ProblemAssessmentFields,
@@ -139,21 +159,14 @@ export interface RiskProblemEntity
   historico_eventos?: HistoricoEvento[];
 }
 
+export type RiskProblemEntity = RiskProblemItem;
+export type ConvertRiskToProblemResponse = RiskProblemItem;
+
 /*
  * LISTAGEM
  */
 
-export interface RiskProblemListItem {
-  id: string;
-  tipo_inicial: TipoInicialEnum;
-  natureza_atual: NaturezaAtualEnum;
-  status_operacional: StatusOperacional;
-  origem?: OrigemItemEnum;
-
-  descricao: string;
-  agente_solucao?: string | null;
-  data_alvo_solucao?: string | null;
-
+export interface RiskProblemListItem extends RiskProblemItem {
   /**
    * Campo calculado para leitura rápida na tabela.
    * Para risco, tende a refletir nível residual.
@@ -162,7 +175,6 @@ export interface RiskProblemListItem {
    */
   classificacao_atual?: number | string | null;
 }
-
 /**
  * Response padrão de listagem.
  * Pode ser ajustado para o shape real da API, mas a UI deve consumir este tipo.
@@ -170,8 +182,8 @@ export interface RiskProblemListItem {
 export interface RiskProblemListResponse {
   items: RiskProblemListItem[];
   total: number;
-  page: number;
-  pageSize: number;
+  page?: number;
+  pageSize?: number;
 }
 
 /*
@@ -481,6 +493,7 @@ export interface LegacyRiskProblemApiShape {
   nivel_risco_inerente?: number | string;
   nivel_risco_residual?: number | string;
 
+  convertido_em_problema_em?: string;
   data_transicao_problema?: string;
   motivo_transicao?: string;
   controle_aplicado?: boolean | number | string;

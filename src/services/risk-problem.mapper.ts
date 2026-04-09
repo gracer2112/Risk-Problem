@@ -8,6 +8,7 @@ import {
   StatusProblemaEnum,
   OrigemItemEnum,
   type StatusOperacional,
+  type SimNaoValue,
   type RiskProblemEntity,
   type RiskProblemListItem,
   type RiskProblemFormData,
@@ -109,29 +110,29 @@ function toNullableNumber(value: unknown): number | null {
   return null;
 }
 
-function toNullableBoolean(value: unknown): boolean | null {
+function toNullableSimNao(value: unknown): SimNaoValue | null {
   if (value === null || value === undefined || value === '') {
     return null;
   }
 
   if (typeof value === 'boolean') {
-    return value;
+    return value ? 'sim' : 'nao';
   }
 
   if (typeof value === 'number') {
-    if (value === 1) return true;
-    if (value === 0) return false;
+    if (value === 1) return 'sim';
+    if (value === 0) return 'nao';
   }
 
   if (typeof value === 'string') {
     const normalized = value.trim().toLowerCase();
 
     if (['true', '1', 'sim', 'yes'].includes(normalized)) {
-      return true;
+      return 'sim';
     }
 
     if (['false', '0', 'nao', 'não', 'no'].includes(normalized)) {
-      return false;
+      return 'nao';
     }
   }
 
@@ -488,12 +489,19 @@ export function mapLegacyApiToEntity(
     urgencia_solucao,
     prioridade_problema,
 
-    data_transicao_problema: toNullableString(
-      legacy.data_transicao_problema
+    convertido_em_problema_em: toNullableString(
+      (legacy as LegacyRiskProblemApiShape & { convertido_em_problema_em?: unknown })
+        .convertido_em_problema_em
     ),
+    data_transicao_problema: toNullableString(
+      legacy.data_transicao_problema ??
+        (legacy as LegacyRiskProblemApiShape & { convertido_em_problema_em?: unknown })
+          .convertido_em_problema_em
+    ),
+    
     motivo_transicao: toNullableString(legacy.motivo_transicao),
-    controle_aplicado: toNullableBoolean(legacy.controle_aplicado),
-    controle_efetivo: toNullableBoolean(legacy.controle_efetivo),
+    controle_aplicado: toNullableSimNao(legacy.controle_aplicado),
+    controle_efetivo: toNullableSimNao(legacy.controle_efetivo),
     historico_eventos: normalizeHistoricoEventos(legacy.historico_eventos),
   };
 }
@@ -517,14 +525,7 @@ export function mapEntityToListItem(
       : entity.prioridade_problema;
 
   return {
-    id: entity.id,
-    tipo_inicial: entity.tipo_inicial,
-    natureza_atual: entity.natureza_atual,
-    status_operacional: entity.status_operacional,
-    origem: entity.origem,
-    descricao: entity.descricao,
-    agente_solucao: entity.agente_solucao ?? null,
-    data_alvo_solucao: entity.data_alvo_solucao ?? null,
+    ...entity,
     classificacao_atual: classificacao_atual ?? null,
   };
 }
