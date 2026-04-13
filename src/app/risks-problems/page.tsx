@@ -6,8 +6,10 @@ import { useEffect, useState } from "react";
 import { useRiskProblems } from "@/hooks/useRiskProblems";
 import { RiskProblemTable } from "@/components/RiskProblemTable";
 import RiskProblemDrawer from "@/components/RiskProblemDrawer";
+import { isClosedItem } from "@/utils/risk-problem-domain";
 import {
   NaturezaAtualEnum,
+  type CloseRiskProblemRequest,
   type ConvertRiskToProblemRequest,
   type RiskProblemEntity,
   type RiskProblemFormData,
@@ -38,6 +40,7 @@ export default function RisksProblemsPage() {
     createItem,
     updateItem,
     convertToProblem,
+    closeItem,
     deleteItem,
   } = useRiskProblems(PROJECT_ID);
 
@@ -87,6 +90,7 @@ export default function RisksProblemsPage() {
 
     if (filterMode === "atrasado") {
       if (!item.data_alvo_solucao) return false;
+      if (isClosedItem(item)) return false;
 
       const prazoDate = new Date(item.data_alvo_solucao);
       const hoje = new Date();
@@ -128,6 +132,20 @@ export default function RisksProblemsPage() {
       return convertedEntity;
     } catch (error) {
       console.error("Erro ao converter risco em problema:", error);
+      throw error;
+    }
+  };
+
+  const handleCloseRiskProblem = async (
+    item: RiskProblemEntity,
+    payload: CloseRiskProblemRequest
+  ): Promise<RiskProblemEntity> => {
+    try {
+      const closedEntity = await closeItem(item, payload);
+      setSelectedItem(closedEntity);
+      return closedEntity;
+    } catch (error) {
+      console.error("Erro ao encerrar item:", error);
       throw error;
     }
   };
@@ -340,6 +358,7 @@ export default function RisksProblemsPage() {
           onClose={handleCloseDrawer}
           onSave={handleSave}
           onConvertToProblem={handleConvertToProblem}
+          onCloseRiskProblem={handleCloseRiskProblem}
         />
       )}
     </div>

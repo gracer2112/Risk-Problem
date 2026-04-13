@@ -1,6 +1,8 @@
 // src/services/api.ts
 
 import type {
+  CloseRiskProblemFormData,
+  CloseRiskProblemResponse,
   ConvertRiskToProblemRequest,
   ConvertRiskToProblemResponse,
   LegacyRiskProblemApiShape,
@@ -10,6 +12,7 @@ import type {
 } from '@/types/risk-problem';
 
 import {
+  mapCloseFormToRequest,
   mapApiListToListItems,
   mapFormToCreateRequest,
   mapFormToUpdateRequest,
@@ -145,6 +148,10 @@ function buildConvertToProblemUrl(
   return `${API_BASE_URL}/projects/${projectId}/risks-problems/${itemId}/convert-to-problem`;
 }
 
+function buildCloseItemUrl(projectId: string, itemId: string): string {
+  return `${API_BASE_URL}/projects/${projectId}/risks-problems/${itemId}/close`;
+}
+
 export const riskProblemService = {
   async list(
     projectId: string,
@@ -255,6 +262,25 @@ export const riskProblemService = {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(payload),
+    });
+
+    const raw =
+      await handleJsonResponse<LegacyRiskProblemApiShape>(response);
+
+    return mapLegacyApiToEntity(raw);
+  },
+
+  async closeItem(
+    projectId: string,
+    item: Pick<RiskProblemEntity, 'id' | 'natureza_atual'>,
+    form: CloseRiskProblemFormData
+  ): Promise<CloseRiskProblemResponse> {
+    const body = mapCloseFormToRequest(item, form);
+
+    const response = await fetch(buildCloseItemUrl(projectId, item.id), {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(body),
     });
 
     const raw =

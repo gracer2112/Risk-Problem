@@ -70,6 +70,17 @@ export type ConvertRiskToProblemFormData = {
   controlEffective: SimNaoValue;
 };
 
+export type CloseRiskProblemRequest = {
+  data_encerramento: string;
+  observacao_encerramento: string;
+  updatedBy?: string;
+};
+
+export type CloseRiskProblemFormData = {
+  data_encerramento: string;
+  observacao_encerramento: string;
+};
+
 /*
  * TIPOS AUXILIARES
  */
@@ -147,6 +158,11 @@ export interface TransitionFields {
   controle_efetivo?: SimNaoValue | null;
 }
 
+export interface ClosureFields {
+  data_encerramento?: string | null;
+  observacao_encerramento?: string | null;
+}
+
 /*
  * ENTIDADE PRINCIPAL
  */
@@ -155,12 +171,14 @@ export interface RiskProblemItem
   extends RiskProblemBase,
     RiskAssessmentFields,
     ProblemAssessmentFields,
-    TransitionFields {
+    TransitionFields,
+    ClosureFields {
   historico_eventos?: HistoricoEvento[];
 }
 
 export type RiskProblemEntity = RiskProblemItem;
 export type ConvertRiskToProblemResponse = RiskProblemItem;
+export type CloseRiskProblemResponse = RiskProblemItem;
 
 /*
  * LISTAGEM
@@ -498,6 +516,7 @@ export interface LegacyRiskProblemApiShape {
   motivo_transicao?: string;
   controle_aplicado?: boolean | number | string;
   controle_efetivo?: boolean | number | string;
-
+  data_encerramento?: string;
+  observacao_encerramento?: string;
   historico_eventos?: HistoricoEvento[] | unknown[];
 }

@@ -67,16 +67,38 @@ export function isStatusCompatibleWithNature(
 
 export function isFinalStatus(status: StatusOperacional): boolean {
   return (
+    status === StatusRiscoEnum.MITIGADO ||
     status === StatusRiscoEnum.ENCERRADO ||
+    status === StatusProblemaEnum.RESOLVIDO ||
     status === StatusProblemaEnum.ENCERRADO
   );
 }
 
-export function canConvertRiskToProblem(
-  item: Pick<RiskProblemItem, 'natureza_atual' | 'status_operacional'>
+export function getFinalStatusByNatureza(
+  natureza: NaturezaAtualEnum
+): StatusOperacional {
+  return natureza === NaturezaAtualEnum.RISCO
+    ? StatusRiscoEnum.MITIGADO
+    : StatusProblemaEnum.RESOLVIDO;
+}
+
+export function isClosedItem(
+  item: Pick<RiskProblemItem, 'status_operacional' | 'data_encerramento'>
+): boolean {
+  return Boolean(item.data_encerramento) || isFinalStatus(item.status_operacional);
+}
+
+export function canCloseRiskProblem(
+  item: Pick<RiskProblemItem, 'natureza_atual' | 'status_operacional' | 'data_encerramento'>
 ): boolean {
   return (
-    isRisk(item) &&
-    item.status_operacional !== StatusRiscoEnum.ENCERRADO
+    isStatusCompatibleWithNature(item.natureza_atual, item.status_operacional) &&
+    !isClosedItem(item)
   );
+}
+
+export function canConvertRiskToProblem(
+  item: Pick<RiskProblemItem, 'natureza_atual' | 'status_operacional' | 'data_encerramento'>
+): boolean {
+  return isRisk(item) && !isClosedItem(item);
 }

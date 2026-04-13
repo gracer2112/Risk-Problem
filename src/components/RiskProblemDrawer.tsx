@@ -9,6 +9,8 @@ import {
   NaturezaAtualEnum,
   StatusRiscoEnum,
   StatusProblemaEnum,
+  type CloseRiskProblemFormData,
+  type CloseRiskProblemRequest,
   type ConvertRiskToProblemFormData,
   type ConvertRiskToProblemRequest,
   type RiskProblemEntity,
@@ -22,11 +24,16 @@ import {
 
 import {
   getVisibilityRules,
+  validateCloseRiskProblemForm,
   validateConvertToProblemForm,
   validateRiskProblem,
 } from '@/utils/drawer-validation';
 
-import { canConvertRiskToProblem } from '@/utils/risk-problem-domain';
+import {
+  canCloseRiskProblem,
+  canConvertRiskToProblem,
+  isClosedItem,
+} from '@/utils/risk-problem-domain';
 
 
 interface RiskProblemDrawerProps {
@@ -40,6 +47,10 @@ interface RiskProblemDrawerProps {
   onConvertToProblem?: (
     item: RiskProblemEntity,
     payload: ConvertRiskToProblemRequest
+  ) => Promise<RiskProblemEntity>;
+  onCloseRiskProblem?: (
+    item: RiskProblemEntity,
+    payload: CloseRiskProblemRequest
   ) => Promise<RiskProblemEntity>;
   loading?: boolean;
 }
@@ -200,12 +211,38 @@ function buildInitialConvertFormData(
   };
 }
 
+function buildInitialCloseFormData(
+  item?: RiskProblemEntity | null
+): CloseRiskProblemFormData {
+  return {
+    data_encerramento: normalizeDateTimeLocalInputValue(
+      item?.data_encerramento ?? null
+    ),
+    observacao_encerramento: item?.observacao_encerramento ?? '',
+  };
+}
+
+function formatDateTimeDisplay(value?: string | null): string {
+  if (!value) {
+    return '—';
+  }
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return parsed.toLocaleString('pt-BR');
+}
+
 export default function RiskProblemDrawer({
   isOpen,
   item,
   onClose,
   onSave,
   onConvertToProblem,
+  onCloseRiskProblem,
   loading = false,
 }: RiskProblemDrawerProps) {
 
@@ -223,11 +260,28 @@ export default function RiskProblemDrawer({
   const [convertErrors, setConvertErrors] = useState<Record<string, string>>(
     {}
   );
+  const [isCloseMode, setIsCloseMode] = useState(false);
+  const [closeForm, setCloseForm] =
+    useState<CloseRiskProblemFormData>(
+      buildInitialCloseFormData(item)
+    );
+  const [closeErrors, setCloseErrors] = useState<Record<string, string>>({});
+
   const isEditing = Boolean(item);
   const isBusy = isSubmitting || loading;
 
   const canShowConvertAction = Boolean(
     item && onConvertToProblem && canConvertRiskToProblem(item)
+  );
+
+  const isClosed = Boolean(item && isClosedItem(item));
+
+  const canShowCloseAction = Boolean(
+    item && onCloseRiskProblem && canCloseRiskProblem(item)
+  );
+
+  const showClosureSummary = Boolean(
+    item && (item.data_encerramento || item.observacao_encerramento)
   );
 
 
@@ -249,6 +303,9 @@ export default function RiskProblemDrawer({
     setIsConvertMode(false);
     setConvertForm(buildInitialConvertFormData(item));
     setConvertErrors({});
+    setIsCloseMode(false);
+    setCloseForm(buildInitialCloseFormData(item));
+    setCloseErrors({});
 
   }, [isOpen, item]);
 
@@ -302,6 +359,30 @@ export default function RiskProblemDrawer({
     }));
 
     setConvertErrors((prev) => {
+      if (!prev[field as string]) {
+        return prev;
+      }
+
+      const next = { ...prev };
+      delete next[field as string];
+      return next;
+    });
+
+    if (submitError) {
+      setSubmitError(null);
+    }
+  };
+
+  const updateCloseField = <K extends keyof CloseRiskProblemFormData>(
+    field: K,
+    value: CloseRiskProblemFormData[K]
+  ) => {
+    setCloseForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+
+    setCloseErrors((prev) => {
       if (!prev[field as string]) {
         return prev;
       }
@@ -403,6 +484,42 @@ export default function RiskProblemDrawer({
     }
   };
 
+  const handleCloseSubmit = async () => {
+    if (!item || !onCloseRiskProblem) {
+      return;
+    }
+
+    setSubmitError(null);
+
+    const validation = validateCloseRiskProblemForm(closeForm);
+
+    if (!validation.isValid) {
+      setCloseErrors(validation.errors);
+      return;
+    }
+
+    setCloseErrors({});
+    setIsSubmitting(true);
+
+    try {
+      const closedEntity = await onCloseRiskProblem(item, {
+        ...closeForm,
+        data_encerramento: toIsoFromDateTimeLocal(closeForm.data_encerramento),
+      });
+
+      setIsCloseMode(false);
+      setCloseForm(buildInitialCloseFormData(closedEntity));
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : 'Não foi possível encerrar o item.'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };  
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -490,7 +607,13 @@ export default function RiskProblemDrawer({
                 {!isConvertMode ? (
                   <button
                     type="button"
-                    onClick={() => setIsConvertMode(true)}
+                    onClick={() => {
+                        setIsCloseMode(false);
+                        setCloseErrors({});
+                        setCloseForm(buildInitialCloseFormData(item));
+                        setSubmitError(null);
+                        setIsConvertMode(true);
+                    }}
                     disabled={isBusy}
                     className="rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
@@ -626,7 +749,139 @@ export default function RiskProblemDrawer({
                 </div>
               )}
             </section>
-          )}
+            )}
+
+            {(canShowCloseAction || showClosureSummary) && (
+            <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-emerald-800">
+                    Encerramento do item
+                  </h3>
+                  <p className="mt-1 text-sm text-emerald-700">
+                    Registre a conclusão com data e observação final para manter
+                    a rastreabilidade do item.
+                  </p>
+                </div>
+
+                {canShowCloseAction &&
+                  (!isCloseMode ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsConvertMode(false);
+                        setConvertErrors({});
+                        setConvertForm(buildInitialConvertFormData(item));
+                        setSubmitError(null);
+                        setIsCloseMode(true);
+                      }}
+                      disabled={isBusy}
+                      className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Encerrar item
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCloseMode(false);
+                        setCloseErrors({});
+                        setSubmitError(null);
+                        setCloseForm(buildInitialCloseFormData(item));
+                      }}
+                      disabled={isBusy}
+                      className="rounded-md border border-emerald-300 bg-white px-4 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Cancelar encerramento
+                    </button>
+                  ))}
+              </div>
+
+              {showClosureSummary && (
+                <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
+                      Data de encerramento
+                    </p>
+                    <p className="mt-1 text-sm text-emerald-900">
+                      {formatDateTimeDisplay(item?.data_encerramento)}
+                    </p>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
+                      Observação final
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap text-sm text-emerald-900">
+                      {item?.observacao_encerramento ?? '—'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {isCloseMode && (
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <label
+                      htmlFor="data_encerramento"
+                      className="mb-1 block text-sm font-medium text-gray-700"
+                    >
+                      Data de encerramento
+                    </label>
+                    <input
+                      id="data_encerramento"
+                      type="datetime-local"
+                      value={closeForm.data_encerramento}
+                      onChange={(event) =>
+                        updateCloseField(
+                          'data_encerramento',
+                          event.target.value
+                        )
+                      }
+                      disabled={isBusy}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 md:w-80"
+                    />
+                    <FieldError message={closeErrors.data_encerramento} />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="observacao_encerramento"
+                      className="mb-1 block text-sm font-medium text-gray-700"
+                    >
+                      Observação final
+                    </label>
+                    <textarea
+                      id="observacao_encerramento"
+                      rows={3}
+                      value={closeForm.observacao_encerramento}
+                      onChange={(event) =>
+                        updateCloseField(
+                          'observacao_encerramento',
+                          event.target.value
+                        )
+                      }
+                      disabled={isBusy}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+                    />
+                    <FieldError message={closeErrors.observacao_encerramento} />
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleCloseSubmit}
+                      disabled={isBusy}
+                      className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isBusy ? 'Encerrando...' : 'Confirmar encerramento'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </section>
+            )}
+
           <section className="rounded-lg border border-gray-200 p-4">
             <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-600">
               Classificação
@@ -691,7 +946,7 @@ export default function RiskProblemDrawer({
                       event.target.value as RiskProblemFormData['status_operacional']
                     )
                   }
-                  disabled={isBusy}
+                  disabled={isBusy || isClosed}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
                 >
                   {statusOptions.map((status) => (
