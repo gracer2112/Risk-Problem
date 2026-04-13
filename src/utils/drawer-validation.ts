@@ -1,6 +1,7 @@
 // src/utils/drawer-validation.ts
 
 import {
+  CloseRiskProblemFormData,
   ConvertRiskToProblemFormData,
   NaturezaAtualEnum,
   RiskProblemFormData,
@@ -105,8 +106,6 @@ export function validateRiskProblem(
 
     if (Number.isNaN(prazoDate.getTime())) {
       errors.data_alvo_solucao = 'Data alvo inválida.';
-    } else if (prazoDate.getTime() < Date.now()) {
-      errors.data_alvo_solucao = 'A data alvo deve ser futura.';
     }
   }
 
@@ -148,6 +147,34 @@ export function validateConvertToProblemForm(
 
   if (!isValidSimNao(data.controlEffective)) {
     errors.controlEffective = 'Informe se o controle era efetivo.';
+  }
+
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors,
+  };
+}
+
+/**
+ * Validação específica do fluxo de encerramento do item.
+ */
+export function validateCloseRiskProblemForm(
+  data: Partial<CloseRiskProblemFormData>
+): ValidationResult {
+  const errors: Record<string, string> = {};
+
+  if (isBlank(data.data_encerramento)) {
+    errors.data_encerramento = 'A data de encerramento é obrigatória.';
+  } else {
+    const closeDate = new Date(String(data.data_encerramento));
+    if (Number.isNaN(closeDate.getTime())) {
+      errors.data_encerramento = 'A data de encerramento é inválida.';
+    }
+  }
+
+  if (isBlank(data.observacao_encerramento)) {
+    errors.observacao_encerramento =
+      'A observação de encerramento é obrigatória.';
   }
 
   return {

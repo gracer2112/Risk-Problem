@@ -4,6 +4,7 @@
 
 import { NaturezaAtualEnum } from '@/types/risk-problem';
 import type { RiskProblemListItem } from '@/types/risk-problem';
+import { isClosedItem } from '@/utils/risk-problem-domain';
 
 interface RiskProblemTableProps {
   items: RiskProblemListItem[];
@@ -209,6 +210,7 @@ export function RiskProblemTable({
             {items.map((item) => {
               const delayDays = calculateDelay(item.data_alvo_solucao);
               const isDelayed = delayDays > 0;
+              const isClosed = isClosedItem(item);
 
               return (
                 <tr
@@ -257,7 +259,7 @@ export function RiskProblemTable({
                         {formatDate(item.data_alvo_solucao)}
                       </span>
 
-                      {isDelayed && (
+                      {isDelayed && !isClosed && (
                         <span className="inline-flex rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
                           {delayDays} dia{delayDays > 1 ? 's' : ''} de atraso
                         </span>
@@ -273,6 +275,11 @@ export function RiskProblemTable({
                     >
                       {formatLabel(item.status_operacional)}
                     </span>
+                    {isClosed && item.data_encerramento && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        Encerrado em {formatDate(item.data_encerramento)}
+                      </p>
+                    )}
                   </td>
 
                   <td className="px-4 py-4 align-top">

@@ -14,6 +14,8 @@ import {
   type RiskProblemFormData,
   type RiskProblemCreateRequest,
   type RiskProblemUpdateRequest,
+  type CloseRiskProblemFormData,
+  type CloseRiskProblemRequest,
   type LegacyRiskProblemApiShape,
   type HistoricoEvento,
   getDefaultNaturezaByTipoInicial,
@@ -23,6 +25,11 @@ import {
   calcularNivelRiscoResidual,
   calcularPrioridadeProblema,
 } from '@/types/risk-problem';
+
+import {
+  getFinalStatusByNatureza,
+  isFinalStatus,
+} from '@/utils/risk-problem-domain';
 
 const RISK_STATUS_VALUES: StatusRiscoEnum[] = [
   StatusRiscoEnum.IDENTIFICADO,
@@ -63,6 +70,10 @@ type UpdateCompatibilityPayload = RiskProblemUpdateRequest & {
   urgencia?: number | null;
   prioridade?: number | null;
   acao_corretiva?: string;
+};
+
+type CloseCompatibilityPayload = CloseRiskProblemRequest & {
+  status_operacional: StatusOperacional;
 };
 
 function normalizeToken(value: unknown): string {
@@ -397,11 +408,27 @@ export function mapLegacyApiToEntity(
     ? normalizeNaturezaAtual(legacy.natureza_atual)
     : getDefaultNaturezaByTipoInicial(tipo_inicial);
 
-  const status_operacional = legacy.status_operacional
+  let status_operacional = legacy.status_operacional
     ? normalizeStatusOperacional(legacy.status_operacional, natureza_atual)
     : getDefaultStatusByTipoInicial(tipo_inicial);
 
   const origem = inferOrigem(tipo_inicial, natureza_atual, legacy.origem);
+
+  const data_encerramento = toNullableString(
+    legacy.data_encerramento ??
+      (legacy as LegacyRiskProblemApiShape & { encerrado_em?: unknown })
+        .encerrado_em
+  );
+
+  const observacao_encerramento = toNullableString(
+    legacy.observacao_encerramento ??
+      (legacy as LegacyRiskProblemApiShape & { observacoes?: unknown })
+        .observacoes
+  );
+
+  if (data_encerramento && !isFinalStatus(status_operacional)) {
+    status_operacional = getFinalStatusByNatureza(natureza_atual);
+  }
 
   const probabilidade_inerente = toNullableNumber(
     legacy.probabilidade_inerente ?? legacy.probabilidade
@@ -502,6 +529,8 @@ export function mapLegacyApiToEntity(
     motivo_transicao: toNullableString(legacy.motivo_transicao),
     controle_aplicado: toNullableSimNao(legacy.controle_aplicado),
     controle_efetivo: toNullableSimNao(legacy.controle_efetivo),
+    data_encerramento,
+    observacao_encerramento,
     historico_eventos: normalizeHistoricoEventos(legacy.historico_eventos),
   };
 }
@@ -758,4 +787,19 @@ export function mapFormToUpdateRequest(
   }
 
   return update;
+}
+
+export function mapCloseFormToRequest(
+  item: Pick<RiskProblemEntity, 'natureza_atual'>,
+  form: CloseRiskProblemFormData
+): CloseRiskProblemRequest {
+  const payload: CloseCompatibilityPayload = {
+    data_encerramento: sanitizeRequiredText(form.data_encerramento),
+    observacao_encerramento: sanitizeRequiredText(
+      form.observacao_encerramento
+    ),
+    status_operacional: getFinalStatusByNatureza(item.natureza_atual),
+  };
+
+  return payload;
 }

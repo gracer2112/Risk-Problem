@@ -1,7 +1,5 @@
 // src/components/Badge.tsx
 
-import { SeveridadeEnum, NaturezaEnum } from "@/types/risk-problem";
-
 interface BadgeProps {
   type: "natureza" | "status" | "severidade";
   value: string | null;
@@ -10,7 +8,6 @@ interface BadgeProps {
 
 export function Badge({ type, value, className = "" }: BadgeProps) {
   const getBadgeStyles = (type: string, value: string | null): string => {
-    // Validação: se value for null ou undefined, retorna estilo padrão
     if (!value) {
       return "bg-gray-100 text-gray-800 border-gray-300";
     }

@@ -5,6 +5,7 @@
 import { useCallback, useState } from 'react';
 
 import type {
+  CloseRiskProblemFormData,
   ConvertRiskToProblemRequest,
   RiskProblemEntity,
   RiskProblemFormData,
@@ -34,6 +35,10 @@ type UseRiskProblemsReturn = {
   convertToProblem: (
     itemId: string,
     payload: ConvertRiskToProblemRequest
+  ) => Promise<RiskProblemEntity>;
+  closeItem: (
+    item: Pick<RiskProblemEntity, 'id' | 'natureza_atual'>,
+    form: CloseRiskProblemFormData
   ) => Promise<RiskProblemEntity>;
   deleteItem: (itemId: string) => Promise<void>;
   clearError: () => void;
@@ -189,6 +194,34 @@ export function useRiskProblems(projectId: string): UseRiskProblemsReturn {
     [projectId, setHandledError, upsertListItem]
   );
 
+  const closeItem = useCallback(
+    async (
+      item: Pick<RiskProblemEntity, 'id' | 'natureza_atual'>,
+      form: CloseRiskProblemFormData
+    ): Promise<RiskProblemEntity> => {
+      setError(null);
+
+      try {
+        const closedEntity = await riskProblemService.closeItem(
+          projectId,
+          item,
+          form
+        );
+
+        upsertListItem(closedEntity);
+
+        return closedEntity;
+      } catch (err) {
+        setHandledError(
+          err,
+          'Não foi possível encerrar o item.'
+        );
+        throw err;
+      }
+    },
+    [projectId, setHandledError, upsertListItem]
+  );
+
   const deleteItem = useCallback(
     async (itemId: string): Promise<void> => {
       setError(null);
@@ -214,6 +247,7 @@ export function useRiskProblems(projectId: string): UseRiskProblemsReturn {
     createItem,
     updateItem,
     convertToProblem,
+    closeItem,
     deleteItem,
     clearError,
   };
