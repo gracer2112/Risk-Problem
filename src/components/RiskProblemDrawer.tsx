@@ -16,11 +16,14 @@ import {
   type RiskProblemEntity,
   type RiskProblemFormData,
   type SimNaoValue,
+  type RiskProblemHistoryResponse,
   buildInitialFormData,
   calcularNivelRiscoInerente,
   calcularNivelRiscoResidual,
   calcularPrioridadeProblema,
 } from '@/types/risk-problem';
+
+import RiskProblemHistoryTimeline from '@/components/RiskProblemHistoryTimeline';
 
 import {
   getVisibilityRules,
@@ -53,6 +56,14 @@ interface RiskProblemDrawerProps {
     payload: CloseRiskProblemRequest
   ) => Promise<RiskProblemEntity>;
   loading?: boolean;
+
+  history?: RiskProblemHistoryResponse | null;
+  historyLoading?: boolean;
+  historyError?: string | null;
+  onLoadHistory?: (
+    itemId: string,
+    options?: { force?: boolean }
+  ) => Promise<RiskProblemHistoryResponse>;
 }
 
 const SCORE_MIN = 1;
@@ -244,6 +255,10 @@ export default function RiskProblemDrawer({
   onConvertToProblem,
   onCloseRiskProblem,
   loading = false,
+  history = null,
+  historyLoading = false,
+  historyError = null,
+  onLoadHistory,
 }: RiskProblemDrawerProps) {
 
   const [formData, setFormData] = useState<RiskProblemFormData>(
@@ -284,7 +299,7 @@ export default function RiskProblemDrawer({
     item && (item.data_encerramento || item.observacao_encerramento)
   );
 
-
+  const showHistorySection = Boolean(item);
 
   useEffect(() => {
     if (!isOpen) {
@@ -308,6 +323,14 @@ export default function RiskProblemDrawer({
     setCloseErrors({});
 
   }, [isOpen, item]);
+
+  useEffect(() => {
+    if (!isOpen || !item || !onLoadHistory) {
+      return;
+    }
+
+    onLoadHistory(item.id).catch(() => undefined);
+  }, [isOpen, item, onLoadHistory]); 
 
   const visibility = useMemo(
     () => getVisibilityRules(formData.natureza_atual),
@@ -880,6 +903,32 @@ export default function RiskProblemDrawer({
                 </div>
               )}
             </section>
+            )}
+            
+            {showHistorySection && item && (
+              <section className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">
+                      Histórico do item
+                    </h3>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Linha do tempo para rastreabilidade e leitura gerencial.
+                    </p>
+                  </div>
+                </div>
+
+                <RiskProblemHistoryTimeline
+                  history={history}
+                  loading={historyLoading}
+                  error={historyError}
+                  onRetry={
+                    onLoadHistory
+                      ? () => onLoadHistory(item.id, { force: true })
+                      : undefined
+                  }
+                />
+              </section>
             )}
 
           <section className="rounded-lg border border-gray-200 p-4">

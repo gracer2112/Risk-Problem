@@ -42,6 +42,10 @@ export default function RisksProblemsPage() {
     convertToProblem,
     closeItem,
     deleteItem,
+    historyByItemId,
+    historyLoadingItemId,
+    historyError,
+    loadHistory,
   } = useRiskProblems(PROJECT_ID);
 
   function getNumericClassification(item: RiskProblemListItem): number | null {
@@ -359,6 +363,12 @@ export default function RisksProblemsPage() {
           onSave={handleSave}
           onConvertToProblem={handleConvertToProblem}
           onCloseRiskProblem={handleCloseRiskProblem}
+          history={selectedItem ? historyByItemId[selectedItem.id] ?? null : null}
+          historyLoading={
+            selectedItem ? historyLoadingItemId === selectedItem.id : false
+          }
+          historyError={historyError}
+          onLoadHistory={loadHistory}
         />
       )}
     </div>

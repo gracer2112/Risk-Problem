@@ -9,6 +9,8 @@ import type {
   RiskProblemEntity,
   RiskProblemFormData,
   RiskProblemListResponse,
+  LegacyRiskProblemHistoryResponseShape,
+  RiskProblemHistoryResponse,
 } from '@/types/risk-problem';
 
 import {
@@ -17,6 +19,7 @@ import {
   mapFormToCreateRequest,
   mapFormToUpdateRequest,
   mapLegacyApiToEntity,
+  mapApiHistoryToHistoryResponse,
 } from '@/services/risk-problem.mapper';
 
 export const API_BASE_URL =
@@ -141,6 +144,10 @@ function buildItemUrl(projectId: string, itemId: string): string {
   return `${API_BASE_URL}/projects/${projectId}/risks-problems/${itemId}`;
 }
 
+function buildHistoryUrl(projectId: string, itemId: string): string {
+  return `${API_BASE_URL}/projects/${projectId}/risks-problems/${itemId}/history`;
+}
+
 function buildConvertToProblemUrl(
   projectId: string,
   itemId: string
@@ -210,6 +217,22 @@ export const riskProblemService = {
       await handleJsonResponse<LegacyRiskProblemApiShape>(response);
 
     return mapLegacyApiToEntity(payload);
+  },
+
+  async getHistory(
+    projectId: string,
+    itemId: string
+  ): Promise<RiskProblemHistoryResponse> {
+    const response = await fetch(buildHistoryUrl(projectId, itemId), {
+      method: 'GET',
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+
+    const payload =
+      await handleJsonResponse<LegacyRiskProblemHistoryResponseShape>(response);
+
+    return mapApiHistoryToHistoryResponse(payload);
   },
 
   async create(
