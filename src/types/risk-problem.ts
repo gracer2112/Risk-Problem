@@ -90,18 +90,21 @@ export interface UsuarioRef {
   nome: string;
 }
 
+export type HistoricoEventoTipo =
+  | 'item_criado'
+  | 'status_alterado'
+  | 'data_alvo_alterada'
+  | 'responsavel_alterado'
+  | 'convertido_em_problema'
+  | 'item_encerrado'
+  | 'campo_atualizado';
+  
 export interface HistoricoEvento {
   id: string;
-  tipo_evento:
-    | 'item_criado'
-    | 'status_alterado'
-    | 'data_alvo_alterada'
-    | 'responsavel_alterado'
-    | 'convertido_em_problema'
-    | 'item_encerrado'
-    | 'campo_atualizado';
+  item_id?: string | null;
+  tipo_evento: HistoricoEventoTipo;
   data_evento: string;
-  autor?: UsuarioRef | null;
+  autor?: string | null;
   campo?: string | null;
   valor_anterior?: unknown;
   valor_novo?: unknown;
@@ -202,6 +205,11 @@ export interface RiskProblemListResponse {
   total: number;
   page?: number;
   pageSize?: number;
+}
+
+export interface RiskProblemHistoryResponse {
+  historico_eventos: HistoricoEvento[];
+  total: number;
 }
 
 /*
@@ -462,6 +470,24 @@ export function calcularPrioridadeProblema(
  * - não usar como domínio principal
  * - restringir ao mapper/adapter de API
  */
+
+export interface LegacyHistoricoEventoApiShape {
+  id?: string | number;
+  item_id?: string | number;
+  tipo_evento?: string;
+  data_evento?: string;
+  autor?: string | UsuarioRef | null;
+  campo?: string | null;
+  valor_anterior?: unknown;
+  valor_novo?: unknown;
+  observacao?: string | null;
+}
+
+export interface LegacyRiskProblemHistoryResponseShape {
+  historico_eventos?: LegacyHistoricoEventoApiShape[] | unknown[];
+  total?: number | string;
+}
+
 export interface LegacyRiskProblemApiShape {
   id?: string | number;
   projeto_id?: string | number;
@@ -518,5 +544,5 @@ export interface LegacyRiskProblemApiShape {
   controle_efetivo?: boolean | number | string;
   data_encerramento?: string;
   observacao_encerramento?: string;
-  historico_eventos?: HistoricoEvento[] | unknown[];
+  historico_eventos?: LegacyHistoricoEventoApiShape[] | unknown[];
 }

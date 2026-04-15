@@ -17,7 +17,11 @@ import {
   type CloseRiskProblemFormData,
   type CloseRiskProblemRequest,
   type LegacyRiskProblemApiShape,
+  type LegacyHistoricoEventoApiShape,
+  type LegacyRiskProblemHistoryResponseShape,
   type HistoricoEvento,
+  type HistoricoEventoTipo,
+  type RiskProblemHistoryResponse,
   getDefaultNaturezaByTipoInicial,
   getDefaultStatusByTipoInicial,
   getDefaultOrigemByTipoInicial,
@@ -344,12 +348,34 @@ function buildEntityId(value: unknown): string {
   return parsed ?? '';
 }
 
+function normalizeHistoricoAutor(value: unknown): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === 'string') {
+    return toNullableString(value);
+  }
+
+  if (typeof value === 'object') {
+    const author = value as Record<string, unknown>;
+
+    return (
+      toNullableString(author.nome) ??
+      toNullableString(author.name) ??
+      toNullableString(author.id)
+    );
+  }
+
+  return toNullableString(value);
+}
+
 function normalizeHistoricoTipoEvento(
   value: unknown
-): HistoricoEvento['tipo_evento'] {
+): HistoricoEventoTipo {
   const token = normalizeToken(value);
 
-  const allowed: HistoricoEvento['tipo_evento'][] = [
+  const allowed: HistoricoEventoTipo[] = [
     'item_criado',
     'status_alterado',
     'data_alvo_alterada',
@@ -359,9 +385,25 @@ function normalizeHistoricoTipoEvento(
     'campo_atualizado',
   ];
 
-  return allowed.includes(token as HistoricoEvento['tipo_evento'])
-    ? (token as HistoricoEvento['tipo_evento'])
+  return allowed.includes(token as HistoricoEventoTipo)
+    ? (token as HistoricoEventoTipo)
     : 'campo_atualizado';
+}
+
+function mapLegacyHistoricoEventoToDomain(
+  item: LegacyHistoricoEventoApiShape
+): HistoricoEvento {
+  return {
+    id: buildEntityId(item.id),
+    item_id: toNullableString(item.item_id),
+    tipo_evento: normalizeHistoricoTipoEvento(item.tipo_evento),
+    data_evento: toNullableString(item.data_evento) ?? '',
+    autor: normalizeHistoricoAutor(item.autor),
+    campo: toNullableString(item.campo),
+    valor_anterior: item.valor_anterior,
+    valor_novo: item.valor_novo,
+    observacao: toNullableString(item.observacao),
+  };
 }
 
 function normalizeHistoricoEventos(value: unknown): HistoricoEvento[] {
@@ -371,30 +413,30 @@ function normalizeHistoricoEventos(value: unknown): HistoricoEvento[] {
 
   return value
     .filter(
-      (item): item is Record<string, unknown> =>
+      (item): item is LegacyHistoricoEventoApiShape =>
         typeof item === 'object' && item !== null
     )
-    .map((item, index) => ({
-      id: toNullableString(item.id) ?? `historico_${index}`,
-      tipo_evento: normalizeHistoricoTipoEvento(item.tipo_evento),
-      data_evento:
-        toNullableString(item.data_evento) ?? new Date().toISOString(),
-      autor:
-        item.autor && typeof item.autor === 'object'
-          ? {
-              id:
-                toNullableString((item.autor as Record<string, unknown>).id) ??
-                '',
-              nome:
-                toNullableString((item.autor as Record<string, unknown>).nome) ??
-                '',
-            }
-          : null,
-      campo: toNullableString(item.campo),
-      valor_anterior: item.valor_anterior,
-      valor_novo: item.valor_novo,
-      observacao: toNullableString(item.observacao),
-    }));
+    .map((item) => mapLegacyHistoricoEventoToDomain(item));
+}
+
+export function mapApiHistoryToHistoryResponse(
+  payload: LegacyRiskProblemHistoryResponseShape | unknown
+): RiskProblemHistoryResponse {
+  const source =
+    payload && typeof payload === 'object'
+      ? (payload as LegacyRiskProblemHistoryResponseShape)
+      : {};
+
+  const historico_eventos = normalizeHistoricoEventos(
+    source.historico_eventos
+  );
+
+  const total = toNullableNumber(source.total) ?? historico_eventos.length;
+
+  return {
+    historico_eventos,
+    total,
+  };
 }
 
 export function mapLegacyApiToEntity(
