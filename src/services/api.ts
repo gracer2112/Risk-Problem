@@ -57,6 +57,26 @@ export function getAuthHeaders(extraHeaders?: HeadersInit): HeadersInit {
   return headers;
 }
 
+export function normalizeRequestError(error: unknown): Error {
+  if (error instanceof Error) {
+    if (error.name === 'AbortError' || error.message.includes('timeout')) {
+      return new Error('Operação cancelada ou expirou o tempo limite');
+    }
+    if (error.message.includes('fetch') || error.message.includes('network')) {
+      return new Error('Falha na conexão com o servidor');
+    }
+  }
+  return new Error('Erro inesperado na requisição');
+}
+
+export async function performRequest(url: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, buildRequestInit(init));
+  } catch (error) {
+    throw normalizeRequestError(error);
+  }
+}
+
 async function extractErrorMessage(response: Response): Promise<string> {
   const fallback =
     response.statusText || `Falha na requisição (${response.status}).`;
@@ -108,7 +128,53 @@ export async function handleJsonResponse<T>(response: Response): Promise<T> {
     return undefined as T;
   }
 
-  return JSON.parse(text) as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error('Erro na API de riscos e problemas: resposta JSON inválida.');
+  }
+}
+
+function toOptionalNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().replace(',', '.');
+
+    if (!normalized) {
+      return undefined;
+    }
+
+    const parsed = Number(normalized);
+
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return undefined;
+}
+
+function buildRequestInit(init?: RequestInit): RequestInit {
+  return {
+    ...init,
+    headers: getAuthHeaders(init?.headers),
+    cache: init?.cache ?? 'no-store',
+  };
+}
+
+export async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await performRequest(url, init);
+  return handleJsonResponse<T>(response);
+}
+
+export async function requestVoid(url: string, init?: RequestInit): Promise<void> {
+  const response = await performRequest(url, init);
+  if (!response.ok) {
+    await handleJsonResponse<void>(response);
+  }
 }
 
 type ListFilters = {
@@ -121,9 +187,9 @@ type RawListResponse =
   | {
       items?: unknown[];
       data?: unknown[];
-      total?: number;
-      page?: number;
-      pageSize?: number;
+      total?: unknown;
+      page?: unknown;
+      pageSize?: unknown;
     };
 
 function buildListUrl(projectId: string, filters?: ListFilters): string {
@@ -160,21 +226,11 @@ function buildCloseItemUrl(projectId: string, itemId: string): string {
 }
 
 export const riskProblemService = {
-  async list(
-    projectId: string,
-    filters?: ListFilters
-  ): Promise<RiskProblemListResponse> {
-    const response = await fetch(buildListUrl(projectId, filters), {
-      method: 'GET',
-      headers: getAuthHeaders(),
-      cache: 'no-store',
-    });
-
-    const payload = await handleJsonResponse<RawListResponse>(response);
+  async list(projectId: string, filters?: ListFilters): Promise<RiskProblemListResponse> {
+    const payload = await requestJson<RawListResponse>(buildListUrl(projectId, filters), { method: 'GET' });
 
     if (Array.isArray(payload)) {
       const items = mapApiListToListItems(payload);
-
       return {
         items,
         total: items.length,
@@ -183,23 +239,14 @@ export const riskProblemService = {
       };
     }
 
-    const rawItems = Array.isArray(payload?.items)
-      ? payload.items
-      : Array.isArray(payload?.data)
-      ? payload.data
-      : [];
-
+    const rawItems = Array.isArray(payload?.items) ? payload.items : Array.isArray(payload?.data) ? payload.data : [];
     const items = mapApiListToListItems(rawItems);
 
     return {
       items,
-      total:
-        typeof payload?.total === 'number' ? payload.total : items.length,
-      page: typeof payload?.page === 'number' ? payload.page : 1,
-      pageSize:
-        typeof payload?.pageSize === 'number'
-          ? payload.pageSize
-          : items.length,
+      total: toOptionalNumber(payload.total) ?? items.length,
+      page: toOptionalNumber(payload.page) ?? 1,
+      pageSize: toOptionalNumber(payload.pageSize) ?? items.length,
     };
   },
 
@@ -207,15 +254,7 @@ export const riskProblemService = {
     projectId: string,
     itemId: string
   ): Promise<RiskProblemEntity> {
-    const response = await fetch(buildItemUrl(projectId, itemId), {
-      method: 'GET',
-      headers: getAuthHeaders(),
-      cache: 'no-store',
-    });
-
-    const payload =
-      await handleJsonResponse<LegacyRiskProblemApiShape>(response);
-
+    const payload = await requestJson<LegacyRiskProblemApiShape>(buildItemUrl(projectId, itemId), { method: 'GET' });
     return mapLegacyApiToEntity(payload);
   },
 
@@ -223,15 +262,7 @@ export const riskProblemService = {
     projectId: string,
     itemId: string
   ): Promise<RiskProblemHistoryResponse> {
-    const response = await fetch(buildHistoryUrl(projectId, itemId), {
-      method: 'GET',
-      headers: getAuthHeaders(),
-      cache: 'no-store',
-    });
-
-    const payload =
-      await handleJsonResponse<LegacyRiskProblemHistoryResponseShape>(response);
-
+    const payload = await requestJson<LegacyRiskProblemHistoryResponseShape>(buildHistoryUrl(projectId, itemId), { method: 'GET' });
     return mapApiHistoryToHistoryResponse(payload);
   },
 
@@ -240,19 +271,7 @@ export const riskProblemService = {
     form: RiskProblemFormData
   ): Promise<RiskProblemEntity> {
     const body = mapFormToCreateRequest(form);
-
-    const response = await fetch(
-      `${API_BASE_URL}/projects/${projectId}/risks-problems`,
-      {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(body),
-      }
-    );
-
-    const payload =
-      await handleJsonResponse<LegacyRiskProblemApiShape>(response);
-
+    const payload = await requestJson<LegacyRiskProblemApiShape>(buildListUrl(projectId), { method: 'POST', body: JSON.stringify(body) });
     return mapLegacyApiToEntity(payload);
   },
 
@@ -263,16 +282,7 @@ export const riskProblemService = {
     original?: RiskProblemEntity
   ): Promise<RiskProblemEntity> {
     const body = mapFormToUpdateRequest(form, original);
-
-    const response = await fetch(buildItemUrl(projectId, itemId), {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(body),
-    });
-
-    const payload =
-      await handleJsonResponse<LegacyRiskProblemApiShape>(response);
-
+    const payload = await requestJson<LegacyRiskProblemApiShape>(buildItemUrl(projectId, itemId), { method: 'PUT', body: JSON.stringify(body) });
     return mapLegacyApiToEntity(payload);
   },
 
@@ -281,15 +291,7 @@ export const riskProblemService = {
     itemId: string,
     payload: ConvertRiskToProblemRequest
   ): Promise<ConvertRiskToProblemResponse> {
-    const response = await fetch(buildConvertToProblemUrl(projectId, itemId), {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(payload),
-    });
-
-    const raw =
-      await handleJsonResponse<LegacyRiskProblemApiShape>(response);
-
+    const raw = await requestJson<LegacyRiskProblemApiShape>(buildConvertToProblemUrl(projectId, itemId), { method: 'POST', body: JSON.stringify(payload) });
     return mapLegacyApiToEntity(raw);
   },
 
@@ -299,29 +301,11 @@ export const riskProblemService = {
     form: CloseRiskProblemFormData
   ): Promise<CloseRiskProblemResponse> {
     const body = mapCloseFormToRequest(item, form);
-
-    const response = await fetch(buildCloseItemUrl(projectId, item.id), {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(body),
-    });
-
-    const raw =
-      await handleJsonResponse<LegacyRiskProblemApiShape>(response);
-
+    const raw = await requestJson<LegacyRiskProblemApiShape>(buildCloseItemUrl(projectId, item.id), { method: 'POST', body: JSON.stringify(body) });
     return mapLegacyApiToEntity(raw);
   },
 
   async delete(projectId: string, itemId: string): Promise<void> {
-    const response = await fetch(buildItemUrl(projectId, itemId), {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
-
-    if ([200, 202, 204].includes(response.status)) {
-      return;
-    }
-
-    await handleJsonResponse<void>(response);
+    await requestVoid(buildItemUrl(projectId, itemId), { method: 'DELETE' });
   },
 };

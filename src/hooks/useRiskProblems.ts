@@ -82,6 +82,12 @@ export function useRiskProblems(projectId: string): UseRiskProblemsReturn {
   }, []);
 
   const invalidateHistory = useCallback((itemId: string) => {
+    setHistoryError(null);
+
+    setHistoryLoadingItemId((current) =>
+      current === itemId ? null : current
+    );
+
     setHistoryByItemId((prev) => {
       if (!prev[itemId]) {
         return prev;
@@ -95,12 +101,16 @@ export function useRiskProblems(projectId: string): UseRiskProblemsReturn {
 
   const clearHistory = useCallback((itemId?: string) => {
     setHistoryError(null);
-    setHistoryLoadingItemId(null);
 
     if (!itemId) {
+      setHistoryLoadingItemId(null);
       setHistoryByItemId({});
       return;
     }
+
+    setHistoryLoadingItemId((current) =>
+      current === itemId ? null : current
+    );
 
     setHistoryByItemId((prev) => {
       if (!prev[itemId]) {
@@ -155,7 +165,9 @@ export function useRiskProblems(projectId: string): UseRiskProblemsReturn {
       setError(null);
 
       try {
-        return await riskProblemService.getById(projectId, itemId);
+        const entity = await riskProblemService.getById(projectId, itemId);
+        upsertListItem(entity);
+        return entity;
       } catch (err) {
         setHandledError(
           err,
@@ -164,7 +176,7 @@ export function useRiskProblems(projectId: string): UseRiskProblemsReturn {
         throw err;
       }
     },
-    [projectId, setHandledError]
+    [projectId, setHandledError, upsertListItem]
   );
 
   const loadHistory = useCallback(

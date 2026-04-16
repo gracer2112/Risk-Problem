@@ -38,6 +38,11 @@ import {
   isClosedItem,
 } from '@/utils/risk-problem-domain';
 
+import {
+  mapEntityToFormData 
+} from '@/services/risk-problem.mapper';
+
+import { riskProblemService } from '@/services/api';
 
 interface RiskProblemDrawerProps {
   isOpen: boolean;
@@ -95,6 +100,7 @@ function normalizeDateInputValue(value?: string | null): string | null {
 }
 
 function mapItemToFormData(item: RiskProblemEntity): RiskProblemFormData {
+  const formData = mapEntityToFormData(item);
   return {
     tipo_inicial: item.tipo_inicial,
     natureza_atual: item.natureza_atual,
@@ -284,7 +290,7 @@ export default function RiskProblemDrawer({
 
   const isEditing = Boolean(item);
   const isBusy = isSubmitting || loading;
-
+  const isSpecialMode = isConvertMode || isCloseMode;
   const canShowConvertAction = Boolean(
     item && onConvertToProblem && canConvertRiskToProblem(item)
   );
@@ -1447,7 +1453,7 @@ export default function RiskProblemDrawer({
             >
               Cancelar
             </button>
-
+            {!isSpecialMode && (
             <button
               type="submit"
               disabled={isBusy}
@@ -1455,6 +1461,7 @@ export default function RiskProblemDrawer({
             >
               {isBusy ? 'Salvando...' : 'Salvar'}
             </button>
+            )}
           </div>
         </form>
       </aside>

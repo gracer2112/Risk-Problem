@@ -55,8 +55,10 @@ export type StatusOperacional =
 
 export type SimNaoValue = 'sim' | 'nao';
 
+export type DateString = string;
+
 export type ConvertRiskToProblemRequest = {
-  transitionedAt: string;
+  transitionedAt: DateString;
   transitionReason: string;
   controlApplied: SimNaoValue;
   controlEffective: SimNaoValue;
@@ -64,20 +66,20 @@ export type ConvertRiskToProblemRequest = {
 };
 
 export type ConvertRiskToProblemFormData = {
-  transitionedAt: string;
+  transitionedAt: DateString;
   transitionReason: string;
   controlApplied: SimNaoValue;
   controlEffective: SimNaoValue;
 };
 
 export type CloseRiskProblemRequest = {
-  data_encerramento: string;
+  data_encerramento: DateString;
   observacao_encerramento: string;
   updatedBy?: string;
 };
 
 export type CloseRiskProblemFormData = {
-  data_encerramento: string;
+  data_encerramento: DateString;
   observacao_encerramento: string;
 };
 
@@ -98,16 +100,18 @@ export type HistoricoEventoTipo =
   | 'convertido_em_problema'
   | 'item_encerrado'
   | 'campo_atualizado';
-  
+
+export type HistoricoCampoValor = string | number | boolean | null | Record<string, unknown> | unknown[];
+
 export interface HistoricoEvento {
   id: string;
   item_id?: string | null;
   tipo_evento: HistoricoEventoTipo;
-  data_evento: string;
+  data_evento: DateString;
   autor?: string | null;
   campo?: string | null;
-  valor_anterior?: unknown;
-  valor_novo?: unknown;
+  valor_anterior?: HistoricoCampoValor;
+  valor_novo?: HistoricoCampoValor;
   observacao?: string | null;
 }
 
@@ -122,7 +126,7 @@ export interface RiskProblemBase {
   natureza_atual: NaturezaAtualEnum;
   status_operacional: StatusOperacional;
   origem?: OrigemItemEnum;
-  data_entrada?: string | null;
+  data_entrada?: DateString | null;
 
   titulo?: string | null;
   descricao: string;
@@ -132,7 +136,7 @@ export interface RiskProblemBase {
   acao_corretiva_controle: string;
   agente_solucao?: string | null;
   coordenador_agente?: string | null;
-  data_alvo_solucao?: string | null;
+  data_alvo_solucao?: DateString | null;
 }
 
 export interface RiskAssessmentFields {
@@ -154,15 +158,15 @@ export interface ProblemAssessmentFields {
 }
 
 export interface TransitionFields {
-  convertido_em_problema_em?: string | null;
-  data_transicao_problema?: string | null;
+  convertido_em_problema_em?: DateString | null; // data_transicao_problema é o campo canônico e convertido_em_problema_em é compatibilidade transitória de leitura
+  data_transicao_problema?: DateString | null;
   motivo_transicao?: string | null;
   controle_aplicado?: SimNaoValue | null;
   controle_efetivo?: SimNaoValue | null;
 }
 
 export interface ClosureFields {
-  data_encerramento?: string | null;
+  data_encerramento?: DateString | null;
   observacao_encerramento?: string | null;
 }
 
@@ -232,7 +236,7 @@ export interface RiskProblemFormData {
   acao_corretiva_controle: string;
   agente_solucao?: string | null;
   coordenador_agente?: string | null;
-  data_alvo_solucao?: string | null;
+  data_alvo_solucao?: DateString | null;
 
   // Risco
   probabilidade_inerente?: number | null;
@@ -267,7 +271,7 @@ export interface RiskProblemCreateRequest {
   acao_corretiva_controle: string;
   agente_solucao?: string | null;
   coordenador_agente?: string | null;
-  data_alvo_solucao?: string | null;
+  data_alvo_solucao?: DateString | null;
 
   probabilidade_inerente?: number | null;
   impacto_inerente?: number | null;
@@ -295,7 +299,7 @@ export interface RiskProblemUpdateRequest {
   acao_corretiva_controle?: string;
   agente_solucao?: string | null;
   coordenador_agente?: string | null;
-  data_alvo_solucao?: string | null;
+  data_alvo_solucao?: DateString | null;
 
   status_operacional?: StatusOperacional;
 
@@ -307,6 +311,17 @@ export interface RiskProblemUpdateRequest {
 
   impacto_realizado?: number | null;
   urgencia_solucao?: number | null;
+}
+
+export interface RiskProblemCreateApiPayload extends RiskProblemCreateRequest {
+  natureza_atual?: NaturezaAtualEnum;
+  status_operacional?: StatusOperacional;
+  origem?: OrigemItemEnum;
+  data_entrada?: DateString | null;
+}
+
+export interface RiskProblemUpdateApiPayload extends RiskProblemUpdateRequest {
+  updatedBy?: string;
 }
 
 /*
@@ -475,7 +490,7 @@ export interface LegacyHistoricoEventoApiShape {
   id?: string | number;
   item_id?: string | number;
   tipo_evento?: string;
-  data_evento?: string;
+  data_evento?: DateString;
   autor?: string | UsuarioRef | null;
   campo?: string | null;
   valor_anterior?: unknown;
@@ -496,7 +511,7 @@ export interface LegacyRiskProblemApiShape {
   natureza_atual?: string;
   status_operacional?: string;
   origem?: string;
-  data_entrada?: string;
+  data_entrada?: DateString;
 
   titulo?: string;
   descricao?: string;
@@ -510,8 +525,8 @@ export interface LegacyRiskProblemApiShape {
   agente_solucao?: string;
   coordenador_agente?: string;
 
-  data_prazo?: string;
-  data_alvo_solucao?: string;
+  data_prazo?: DateString;
+  data_alvo_solucao?: DateString;
 
   probabilidade?: number | string;
   probabilidade_inerente?: number | string;
@@ -537,12 +552,12 @@ export interface LegacyRiskProblemApiShape {
   nivel_risco_inerente?: number | string;
   nivel_risco_residual?: number | string;
 
-  convertido_em_problema_em?: string;
-  data_transicao_problema?: string;
+  convertido_em_problema_em?: DateString;
+  data_transicao_problema?: DateString;
   motivo_transicao?: string;
   controle_aplicado?: boolean | number | string;
   controle_efetivo?: boolean | number | string;
-  data_encerramento?: string;
+  data_encerramento?: DateString;
   observacao_encerramento?: string;
   historico_eventos?: LegacyHistoricoEventoApiShape[] | unknown[];
 }
