@@ -12,8 +12,8 @@ import {
   type RiskProblemEntity,
   type RiskProblemListItem,
   type RiskProblemFormData,
-  type RiskProblemCreateRequest,
-  type RiskProblemUpdateRequest,
+  type RiskProblemCreateApiPayload,
+  type RiskProblemUpdateApiPayload,
   type CloseRiskProblemFormData,
   type CloseRiskProblemRequest,
   type LegacyRiskProblemApiShape,
@@ -22,6 +22,7 @@ import {
   type HistoricoEvento,
   type HistoricoEventoTipo,
   type RiskProblemHistoryResponse,
+  type HistoricoCampoValor,
   getDefaultNaturezaByTipoInicial,
   getDefaultStatusByTipoInicial,
   getDefaultOrigemByTipoInicial,
@@ -53,10 +54,7 @@ const PROBLEM_STATUS_VALUES: StatusProblemaEnum[] = [
   StatusProblemaEnum.ENCERRADO,
 ];
 
-type CreateCompatibilityPayload = RiskProblemCreateRequest & {
-  natureza_atual: NaturezaAtualEnum;
-  status_operacional: StatusOperacional;
-  origem: OrigemItemEnum;
+type CreateCompatibilityPayload = RiskProblemCreateApiPayload & {
   probabilidade?: number | null;
   impacto_potencial?: number | null;
   efetividade_controle?: number | null;
@@ -66,7 +64,7 @@ type CreateCompatibilityPayload = RiskProblemCreateRequest & {
   acao_corretiva?: string;
 };
 
-type UpdateCompatibilityPayload = RiskProblemUpdateRequest & {
+type UpdateCompatibilityPayload = RiskProblemUpdateApiPayload & {
   probabilidade?: number | null;
   impacto_potencial?: number | null;
   efetividade_controle?: number | null;
@@ -152,6 +150,20 @@ function toNullableSimNao(value: unknown): SimNaoValue | null {
   }
 
   return null;
+}
+
+function toHistoricoCampoValor(value: unknown): HistoricoCampoValor | undefined {
+  if (
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    (typeof value === 'object' && value !== null && !Array.isArray(value)) ||
+    Array.isArray(value)
+  ) {
+    return value as HistoricoCampoValor;
+  }
+  return undefined;
 }
 
 function areDifferent(a: unknown, b: unknown): boolean {
@@ -400,8 +412,8 @@ function mapLegacyHistoricoEventoToDomain(
     data_evento: toNullableString(item.data_evento) ?? '',
     autor: normalizeHistoricoAutor(item.autor),
     campo: toNullableString(item.campo),
-    valor_anterior: item.valor_anterior,
-    valor_novo: item.valor_novo,
+    valor_anterior: toHistoricoCampoValor(item.valor_anterior),
+    valor_novo: toHistoricoCampoValor(item.valor_novo),
     observacao: toNullableString(item.observacao),
   };
 }
@@ -525,12 +537,13 @@ export function mapLegacyApiToEntity(
 
   return {
     id: buildEntityId(legacy.id),
+    projeto_id: toNullableNumber(legacy.projeto_id),
     tipo_inicial,
     natureza_atual,
     status_operacional,
     origem,
     data_entrada: toNullableString(legacy.data_entrada),
-
+    titulo: toNullableString(legacy.titulo),
     descricao: sanitizeRequiredText(legacy.descricao),
     causa_raiz: sanitizeRequiredText(legacy.causa_raiz),
     descricao_impacto: sanitizeRequiredText(legacy.descricao_impacto),
@@ -631,7 +644,7 @@ export function mapEntityToFormData(
 
 export function mapFormToCreateRequest(
   form: RiskProblemFormData
-): RiskProblemCreateRequest {
+): RiskProblemCreateApiPayload {
   const tipo_inicial = form.tipo_inicial;
   const natureza_atual =
     form.natureza_atual ?? getDefaultNaturezaByTipoInicial(tipo_inicial);
@@ -695,7 +708,7 @@ export function mapFormToCreateRequest(
 export function mapFormToUpdateRequest(
   form: RiskProblemFormData,
   original?: RiskProblemEntity
-): RiskProblemUpdateRequest {
+): RiskProblemUpdateApiPayload {
   const prioridade_problema =
     form.impacto_realizado !== null &&
     form.impacto_realizado !== undefined &&
@@ -820,6 +833,7 @@ export function mapFormToUpdateRequest(
   if (areDifferent(next.impacto_realizado, original.impacto_realizado)) {
     update.impacto_realizado = next.impacto_realizado;
     update.impacto_atual = next.impacto_atual;
+    update.prioridade = next.prioridade;
   }
 
   if (areDifferent(next.urgencia_solucao, original.urgencia_solucao)) {
