@@ -2,11 +2,12 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRiskProblems } from "@/hooks/useRiskProblems";
 import { RiskProblemTable } from "@/components/RiskProblemTable";
 import RiskProblemDrawer from "@/components/RiskProblemDrawer";
 import { isClosedItem } from "@/utils/risk-problem-domain";
+import { getCompositeScoreSemantic, getDeadlineSemantic } from "@/utils/risk-problem-semantics";
 import {
   NaturezaAtualEnum,
   type CloseRiskProblemRequest,
@@ -15,6 +16,16 @@ import {
   type RiskProblemFormData,
   type RiskProblemListItem,
 } from "@/types/risk-problem";
+
+type FilterMode = "all" | "risco" | "problema" | "crítico" | "atrasado" | "média";
+
+const FILTER_MODE_LABELS: Record<Exclude<FilterMode, "all">, string> = {
+  risco: "riscos",
+  problema: "problemas",
+  crítico: "críticos",
+  atrasado: "atrasados",
+  média: "criticidade média",
+};
 
 /**
  * PÁGINA: Riscos e Problemas
@@ -59,7 +70,21 @@ export default function RisksProblemsPage() {
     }
 
     return null;
-  }  
+  }
+
+  function isCriticalItem(item: RiskProblemListItem): boolean {
+    const semantic = getCompositeScoreSemantic(item.classificacao_atual);
+    return !semantic.isEmpty && semantic.label === "Crítica";
+  }
+
+  function isMediumItem(item: RiskProblemListItem): boolean {
+    const semantic = getCompositeScoreSemantic(item.classificacao_atual);
+    return !semantic.isEmpty && semantic.label === "Média";
+  }
+
+  function isOverdueItem(item: RiskProblemListItem): boolean {
+    return getDeadlineSemantic(item.data_alvo_solucao, isClosedItem(item)).isLate;
+  }
 
   const [selectedItem, setSelectedItem] = useState<RiskProblemEntity | null>(
     null
@@ -68,47 +93,30 @@ export default function RisksProblemsPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   // Estado para filtro (no topo do componente, como regra de hooks)
-  const [filterMode, setFilterMode] = useState<"all" | "risco" | "problema" | "crítico" | "atrasado" | "média">("all");
+  const [filterMode, setFilterMode] = useState<FilterMode>("all");
 
   // ===== EFEITO: Carregar itens ao montar =====
   useEffect(() => {
     void loadItems();
   }, [loadItems]);
 
-    // ===== FILTRO: Itens filtrados baseado no estado =====
-  const filteredItems = items.filter((item) => {
+  // ===== FILTRO: Itens filtrados baseado no estado =====
+  const filteredItems = useMemo(() => items.filter((item) => {
     if (filterMode === "all") return true;
-
-    if (filterMode === "risco") {
-      return item.natureza_atual === NaturezaAtualEnum.RISCO;
-    }
-
-    if (filterMode === "problema") {
-      return item.natureza_atual === NaturezaAtualEnum.PROBLEMA;
-    }
-
-    if (filterMode === "crítico") {
-      const score = getNumericClassification(item);
-      return score !== null && score >= 60;
-    }
-
-    if (filterMode === "atrasado") {
-      if (!item.data_alvo_solucao) return false;
-      if (isClosedItem(item)) return false;
-
-      const prazoDate = new Date(item.data_alvo_solucao);
-      const hoje = new Date();
-
-      return prazoDate < hoje;
-    }
-
-    if (filterMode === "média") {
-      const score = getNumericClassification(item);
-      return score !== null && score >= 30 && score < 60;
-    }
-
+    if (filterMode === "risco") return item.natureza_atual === NaturezaAtualEnum.RISCO;
+    if (filterMode === "problema") return item.natureza_atual === NaturezaAtualEnum.PROBLEMA;
+    if (filterMode === "crítico") return isCriticalItem(item);
+    if (filterMode === "atrasado") return isOverdueItem(item);
+    if (filterMode === "média") return isMediumItem(item);
     return true;
-  });
+  }), [items, filterMode]);
+
+  const summaryCounts = useMemo(() => ({
+    total: items.length,
+    riscos: items.filter((i) => i.natureza_atual === NaturezaAtualEnum.RISCO).length,
+    problemas: items.filter((i) => i.natureza_atual === NaturezaAtualEnum.PROBLEMA).length,
+    criticos: items.filter((i) => isCriticalItem(i)).length,
+  }), [items]);
 
   const handleSave = async (
     form: RiskProblemFormData,
@@ -227,7 +235,7 @@ export default function RisksProblemsPage() {
                 className="bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
                 disabled={filterMode === "média"}
               >
-                Filtrar Prioridade Média
+                Filtrar Criticidade Média
               </button>
               <button
                 onClick={handleFilterAtrasados}
@@ -276,7 +284,7 @@ export default function RisksProblemsPage() {
           {filterMode !== "all" && (
             <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-blue-800 font-medium">
-                Mostrando apenas {filterMode === "risco" ? "riscos" : filterMode === "problema" ? "problemas" : filterMode === "crítico" ? "críticos" : filterMode ==="atrasado" ? "atrasados" : "média"} ({filteredItems.length} itens)
+                Mostrando apenas {FILTER_MODE_LABELS[filterMode as Exclude<FilterMode, "all">]} ({filteredItems.length} itens)
                 <button
                   onClick={handleClearFilter}
                   className="ml-4 text-blue-600 hover:text-blue-800 underline text-sm"
@@ -321,33 +329,28 @@ export default function RisksProblemsPage() {
             <div className="bg-white p-6 rounded-lg shadow">
               <p className="text-gray-600 text-sm font-medium">Total de Itens</p>
               <p className="text-3xl font-bold text-gray-900 mt-2">
-                {items.length}
+                {summaryCounts.total}
               </p>
             </div>
 
             <div className="bg-white p-6 rounded-lg shadow">
               <p className="text-gray-600 text-sm font-medium">Riscos</p>
               <p className="text-3xl font-bold text-orange-600 mt-2">
-                  {items.filter((i) => i.natureza_atual === NaturezaAtualEnum.RISCO).length}
+                  {summaryCounts.riscos}
               </p>
             </div>
 
             <div className="bg-white p-6 rounded-lg shadow">
               <p className="text-gray-600 text-sm font-medium">Problemas</p>
               <p className="text-3xl font-bold text-red-600 mt-2">
-                  {items.filter((i) => i.natureza_atual === NaturezaAtualEnum.PROBLEMA).length}
+                  {summaryCounts.problemas}
               </p>
             </div>
 
             <div className="bg-white p-6 rounded-lg shadow">
               <p className="text-gray-600 text-sm font-medium">Críticos</p>
               <p className="text-3xl font-bold text-red-700 mt-2">
-                  {
-                    items.filter((i) => {
-                      const score = getNumericClassification(i);
-                      return score !== null && score >= 60;
-                    }).length
-                  }
+                  {summaryCounts.criticos}
               </p>
             </div>
           </div>

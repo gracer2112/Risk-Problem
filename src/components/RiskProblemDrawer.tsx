@@ -44,6 +44,13 @@ import {
 
 import { riskProblemService } from '@/services/api';
 
+import type { SemanticTone } from '@/utils/risk-problem-semantics';
+import {
+  getFivePointScaleSemantic,
+  getControlEffectivenessSemantic,
+  getCompositeScoreSemantic,
+} from '@/utils/risk-problem-semantics';
+
 interface RiskProblemDrawerProps {
   isOpen: boolean;
   item: RiskProblemEntity | null;
@@ -72,7 +79,7 @@ interface RiskProblemDrawerProps {
 }
 
 const SCORE_MIN = 1;
-const SCORE_MAX = 10;
+const SCORE_MAX = 5;
 const SCORE_STEP = 1;
 
 function normalizeDateInputValue(value?: string | null): string | null {
@@ -253,6 +260,44 @@ function formatDateTimeDisplay(value?: string | null): string {
   return parsed.toLocaleString('pt-BR');
 }
 
+function getSemanticToneTextClass(tone: SemanticTone): string {
+  switch (tone) {
+    case 'neutral':
+      return 'text-gray-600';
+    case 'info':
+      return 'text-sky-700';
+    case 'success':
+      return 'text-emerald-700';
+    case 'warning':
+      return 'text-amber-700';
+    case 'danger':
+      return 'text-red-700';
+    default:
+      return 'text-gray-600';
+  }
+}
+
+function getScoreSemanticLabel(
+  field:
+    | 'probabilidade'
+    | 'impacto'
+    | 'urgencia'
+    | 'efetividade_controle'
+    | 'classificacao'
+    | 'prioridade',
+  value: number | null | undefined
+) {
+  if (field === 'efetividade_controle') {
+    return getControlEffectivenessSemantic(value);
+  }
+
+  if (field === 'classificacao' || field === 'prioridade') {
+    return getCompositeScoreSemantic(value);
+  }
+
+  return getFivePointScaleSemantic(value);
+}
+
 export default function RiskProblemDrawer({
   isOpen,
   item,
@@ -377,6 +422,17 @@ export default function RiskProblemDrawer({
       ),
     [formData.impacto_realizado, formData.urgencia_solucao]
   );
+
+  const probabilidadeInerenteSemantic = useMemo(() => getScoreSemanticLabel('probabilidade', formData.probabilidade_inerente), [formData.probabilidade_inerente]);
+  const impactoInerenteSemantic = useMemo(() => getScoreSemanticLabel('impacto', formData.impacto_inerente), [formData.impacto_inerente]);
+  const nivelRiscoInerenteSemantic = useMemo(() => getScoreSemanticLabel('classificacao', nivel_risco_inerente), [nivel_risco_inerente]);
+  const eficaciaControleSemantic = useMemo(() => getScoreSemanticLabel('efetividade_controle', formData.eficacia_controle), [formData.eficacia_controle]);
+  const probabilidadeResidualSemantic = useMemo(() => getScoreSemanticLabel('probabilidade', formData.probabilidade_residual), [formData.probabilidade_residual]);
+  const impactoResidualSemantic = useMemo(() => getScoreSemanticLabel('impacto', formData.impacto_residual), [formData.impacto_residual]);
+  const nivelRiscoResidualSemantic = useMemo(() => getScoreSemanticLabel('classificacao', nivel_risco_residual), [nivel_risco_residual]);
+  const impactoRealizadoSemantic = useMemo(() => getScoreSemanticLabel('impacto', formData.impacto_realizado), [formData.impacto_realizado]);
+  const urgenciaSolucaoSemantic = useMemo(() => getScoreSemanticLabel('urgencia', formData.urgencia_solucao), [formData.urgencia_solucao]);
+  const prioridadeProblemaSemantic = useMemo(() => getScoreSemanticLabel('prioridade', prioridade_problema), [prioridade_problema]);
 
   const updateConvertField = <K extends keyof ConvertRiskToProblemFormData>(
     field: K,
@@ -1207,6 +1263,7 @@ export default function RiskProblemDrawer({
                     disabled={isBusy}
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
                   />
+                  {!probabilidadeInerenteSemantic.isEmpty && (<p className={`mt-1 text-xs font-medium ${getSemanticToneTextClass(probabilidadeInerenteSemantic.tone)}`}>Leitura operacional: {probabilidadeInerenteSemantic.label}</p>)}
                   <FieldError message={errors.probabilidade_inerente} />
                 </div>
 
@@ -1234,6 +1291,7 @@ export default function RiskProblemDrawer({
                     disabled={isBusy}
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
                   />
+                  {!impactoInerenteSemantic.isEmpty && (<p className={`mt-1 text-xs font-medium ${getSemanticToneTextClass(impactoInerenteSemantic.tone)}`}>Leitura operacional: {impactoInerenteSemantic.label}</p>)}
                   <FieldError message={errors.impacto_inerente} />
                 </div>
 
@@ -1251,6 +1309,7 @@ export default function RiskProblemDrawer({
                     readOnly
                     className="w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-900"
                   />
+                  {!nivelRiscoInerenteSemantic.isEmpty && (<p className={`mt-1 text-xs font-medium ${getSemanticToneTextClass(nivelRiscoInerenteSemantic.tone)}`}>Leitura operacional: {nivelRiscoInerenteSemantic.label}</p>)}
                 </div>
 
                 <div>
@@ -1277,6 +1336,7 @@ export default function RiskProblemDrawer({
                     disabled={isBusy}
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
                   />
+                  {!eficaciaControleSemantic.isEmpty && (<p className={`mt-1 text-xs font-medium ${getSemanticToneTextClass(eficaciaControleSemantic.tone)}`}>Leitura operacional: {eficaciaControleSemantic.label}</p>)}
                   <FieldError message={errors.eficacia_controle} />
                 </div>
 
@@ -1304,6 +1364,7 @@ export default function RiskProblemDrawer({
                     disabled={isBusy}
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
                   />
+                  {!probabilidadeResidualSemantic.isEmpty && (<p className={`mt-1 text-xs font-medium ${getSemanticToneTextClass(probabilidadeResidualSemantic.tone)}`}>Leitura operacional: {probabilidadeResidualSemantic.label}</p>)}
                   <FieldError message={errors.probabilidade_residual} />
                 </div>
 
@@ -1331,6 +1392,7 @@ export default function RiskProblemDrawer({
                     disabled={isBusy}
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
                   />
+                  {!impactoResidualSemantic.isEmpty && (<p className={`mt-1 text-xs font-medium ${getSemanticToneTextClass(impactoResidualSemantic.tone)}`}>Leitura operacional: {impactoResidualSemantic.label}</p>)}
                   <FieldError message={errors.impacto_residual} />
                 </div>
 
@@ -1348,6 +1410,7 @@ export default function RiskProblemDrawer({
                     readOnly
                     className="w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-900"
                   />
+                  {!nivelRiscoResidualSemantic.isEmpty && (<p className={`mt-1 text-xs font-medium ${getSemanticToneTextClass(nivelRiscoResidualSemantic.tone)}`}>Leitura operacional: {nivelRiscoResidualSemantic.label}</p>)}
                 </div>
               </div>
             </section>
@@ -1389,6 +1452,7 @@ export default function RiskProblemDrawer({
                     disabled={isBusy}
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
                   />
+                  {!impactoRealizadoSemantic.isEmpty && (<p className={`mt-1 text-xs font-medium ${getSemanticToneTextClass(impactoRealizadoSemantic.tone)}`}>Leitura operacional: {impactoRealizadoSemantic.label}</p>)}
                   <FieldError message={errors.impacto_realizado} />
                 </div>
 
@@ -1416,6 +1480,7 @@ export default function RiskProblemDrawer({
                     disabled={isBusy}
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
                   />
+                  {!urgenciaSolucaoSemantic.isEmpty && (<p className={`mt-1 text-xs font-medium ${getSemanticToneTextClass(urgenciaSolucaoSemantic.tone)}`}>Leitura operacional: {urgenciaSolucaoSemantic.label}</p>)}
                   <FieldError message={errors.urgencia_solucao} />
                 </div>
 
@@ -1433,6 +1498,7 @@ export default function RiskProblemDrawer({
                     readOnly
                     className="w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-900"
                   />
+                  {!prioridadeProblemaSemantic.isEmpty && (<p className={`mt-1 text-xs font-medium ${getSemanticToneTextClass(prioridadeProblemaSemantic.tone)}`}>Leitura operacional: {prioridadeProblemaSemantic.label}</p>)}
                 </div>
               </div>
             </section>
