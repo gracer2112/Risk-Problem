@@ -5,6 +5,8 @@
 import { NaturezaAtualEnum } from '@/types/risk-problem';
 import type { RiskProblemListItem } from '@/types/risk-problem';
 import { isClosedItem } from '@/utils/risk-problem-domain';
+import type { SemanticTone } from '@/utils/risk-problem-semantics';
+import { getCompositeScoreSemantic, getDeadlineSemantic } from '@/utils/risk-problem-semantics';
 
 interface RiskProblemTableProps {
   items: RiskProblemListItem[];
@@ -98,6 +100,23 @@ function getStatusBadgeClass(status_operacional?: string | null): string {
   }
 }
 
+function getSemanticToneBadgeClass(tone: SemanticTone): string {
+  switch (tone) {
+    case 'neutral':
+      return 'border-gray-200 bg-gray-50 text-gray-700';
+    case 'info':
+      return 'border-sky-200 bg-sky-50 text-sky-700';
+    case 'success':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+    case 'warning':
+      return 'border-amber-200 bg-amber-50 text-amber-700';
+    case 'danger':
+      return 'border-red-200 bg-red-50 text-red-700';
+    default:
+      return 'border-gray-200 bg-gray-50 text-gray-700';
+  }
+}
+
 function getTextOrDash(value?: string | null): string {
   if (!value || !value.trim()) {
     return '-';
@@ -106,15 +125,10 @@ function getTextOrDash(value?: string | null): string {
   return value;
 }
 
-function renderClassification(item: RiskProblemListItem): string | number {
-  if (
-    item.classificacao_atual === null ||
-    item.classificacao_atual === undefined ||
-    item.classificacao_atual === ''
-  ) {
+function getClassificationValue(item: RiskProblemListItem): string | number {
+  if (item.classificacao_atual === null || item.classificacao_atual === undefined || item.classificacao_atual === '') {
     return '-';
   }
-
   return item.classificacao_atual;
 }
 
@@ -211,7 +225,9 @@ export function RiskProblemTable({
               const delayDays = calculateDelay(item.data_alvo_solucao);
               const isDelayed = delayDays > 0;
               const isClosed = isClosedItem(item);
-
+              const classificationSemantic = getCompositeScoreSemantic(item.classificacao_atual);
+              const deadlineSemantic = getDeadlineSemantic(item.data_alvo_solucao, isClosed);
+              
               return (
                 <tr
                   key={item.id}
@@ -238,32 +254,39 @@ export function RiskProblemTable({
 
                   <td className="px-4 py-4 align-top">
                     <div className="space-y-1">
-                      <span className="block text-xs text-gray-500">
-                        {getClassificationLabel(item)}
-                      </span>
-                      <span className="text-sm font-semibold text-gray-900">
-                        {renderClassification(item)}
-                      </span>
+                      <span className="text-sm font-medium text-gray-900">{getClassificationLabel(item)}</span>
+                      <div className="flex items-center space-x-2">
+                        {classificationSemantic.isEmpty ? (
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getSemanticToneBadgeClass('neutral')}`}>
+                            Não informado
+                          </span>
+                        ) : (
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getSemanticToneBadgeClass(classificationSemantic.tone)}`}>
+                            {classificationSemantic.label}
+                          </span>
+                        )}
+                        <span className="text-gray-500">{getClassificationValue(item)}</span>
+                      </div>
                     </div>
                   </td>
 
                   <td className="px-4 py-4 align-top">
-                    <span className="text-sm text-gray-700">
-                      {getTextOrDash(item.agente_solucao)}
-                    </span>
+                    <div className="space-y-1">
+                      <span className="text-sm text-gray-900">{getTextOrDash(item.agente_solucao)}</span>
+                    </div>
                   </td>
 
                   <td className="px-4 py-4 align-top">
                     <div className="space-y-1">
-                      <span className="block text-sm text-gray-700">
-                        {formatDate(item.data_alvo_solucao)}
-                      </span>
-
-                      {isDelayed && !isClosed && (
-                        <span className="inline-flex rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
-                          {delayDays} dia{delayDays > 1 ? 's' : ''} de atraso
+                      <span className="text-sm text-gray-900">{formatDate(item.data_alvo_solucao)}</span>
+                      <div className="flex items-center space-x-2">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getSemanticToneBadgeClass(deadlineSemantic.tone)}`}>
+                          {deadlineSemantic.shortLabel}
                         </span>
-                      )}
+                        {isDelayed && !isClosed && (
+                          <span className="text-red-600">{delayDays} dia{delayDays > 1 ? 's' : ''} de atraso</span>
+                        )}
+                      </div>
                     </div>
                   </td>
 
