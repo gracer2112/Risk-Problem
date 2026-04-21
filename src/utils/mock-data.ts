@@ -1,5 +1,3 @@
-// src/utils/mock-data.ts
-
 import {
   OrigemItemEnum,
   TipoInicialEnum,
@@ -7,6 +5,7 @@ import {
   StatusRiscoEnum,
   StatusProblemaEnum,
   type RiskProblemEntity,
+  type ProjectId,
 } from "@/types/risk-problem";
 
 /**
@@ -17,9 +16,12 @@ import {
  * este arquivo pode ser removido.
  */
 
+const MOCK_PROJECT_ID: ProjectId = "1";
+
 export const MOCK_RISK_PROBLEM_ITEMS: RiskProblemEntity[] = [
   {
     id: "item-001",
+    project_id: MOCK_PROJECT_ID,
     tipo_inicial: TipoInicialEnum.RISCO,
     natureza_atual: NaturezaAtualEnum.RISCO,
     status_operacional: StatusRiscoEnum.PLANO_ACAO_DEFINIDO,
@@ -63,6 +65,7 @@ export const MOCK_RISK_PROBLEM_ITEMS: RiskProblemEntity[] = [
 
   {
     id: "item-002",
+    project_id: MOCK_PROJECT_ID,
     tipo_inicial: TipoInicialEnum.RISCO,
     natureza_atual: NaturezaAtualEnum.PROBLEMA,
     status_operacional: StatusProblemaEnum.EM_TRATAMENTO,
@@ -106,6 +109,7 @@ export const MOCK_RISK_PROBLEM_ITEMS: RiskProblemEntity[] = [
 
   {
     id: "item-003",
+    project_id: MOCK_PROJECT_ID,
     tipo_inicial: TipoInicialEnum.RISCO,
     natureza_atual: NaturezaAtualEnum.RISCO,
     status_operacional: StatusRiscoEnum.IDENTIFICADO,
@@ -149,6 +153,7 @@ export const MOCK_RISK_PROBLEM_ITEMS: RiskProblemEntity[] = [
 
   {
     id: "item-004",
+    project_id: MOCK_PROJECT_ID,
     tipo_inicial: TipoInicialEnum.PROBLEMA,
     natureza_atual: NaturezaAtualEnum.PROBLEMA,
     status_operacional: StatusProblemaEnum.EM_TRATAMENTO,
@@ -192,6 +197,7 @@ export const MOCK_RISK_PROBLEM_ITEMS: RiskProblemEntity[] = [
 
   {
     id: "item-005",
+    project_id: MOCK_PROJECT_ID,
     tipo_inicial: TipoInicialEnum.RISCO,
     natureza_atual: NaturezaAtualEnum.RISCO,
     status_operacional: StatusRiscoEnum.EM_ANALISE,

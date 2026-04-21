@@ -165,6 +165,17 @@ function buildRequestInit(init?: RequestInit): RequestInit {
   };
 }
 
+function checkProjectId(projectId: string | number | undefined): string {
+    if (projectId === undefined || projectId === null) {
+        throw new Error('Projeto não informado para operação de riscos e problemas.');
+    }
+    const normalized = String(projectId).trim();
+    if (normalized === '') {
+        throw new Error('Projeto não informado para operação de riscos e problemas.');
+    }
+    return normalized;
+}
+
 export async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await performRequest(url, init);
   return handleJsonResponse<T>(response);
@@ -193,8 +204,8 @@ type RawListResponse =
     };
 
 function buildListUrl(projectId: string, filters?: ListFilters): string {
-  const url = new URL(`${API_BASE_URL}/projects/${projectId}/risks-problems`);
-
+  const safeProjectId = checkProjectId(projectId);
+  const url = new URL(`${API_BASE_URL}/projects/${safeProjectId}/risks-problems`);
   if (filters?.natureza) {
     url.searchParams.set('natureza', filters.natureza);
   }
@@ -207,22 +218,27 @@ function buildListUrl(projectId: string, filters?: ListFilters): string {
 }
 
 function buildItemUrl(projectId: string, itemId: string): string {
-  return `${API_BASE_URL}/projects/${projectId}/risks-problems/${itemId}`;
+  const safeProjectId = checkProjectId(projectId);
+
+  return `${API_BASE_URL}/projects/${safeProjectId}/risks-problems/${itemId}`;
 }
 
 function buildHistoryUrl(projectId: string, itemId: string): string {
-  return `${API_BASE_URL}/projects/${projectId}/risks-problems/${itemId}/history`;
+  const safeProjectId = checkProjectId(projectId);
+  return `${API_BASE_URL}/projects/${safeProjectId}/risks-problems/${itemId}/history`;
 }
 
 function buildConvertToProblemUrl(
   projectId: string,
   itemId: string
 ): string {
-  return `${API_BASE_URL}/projects/${projectId}/risks-problems/${itemId}/convert-to-problem`;
+  const safeProjectId = checkProjectId(projectId);
+  return `${API_BASE_URL}/projects/${safeProjectId}/risks-problems/${itemId}/convert-to-problem`;
 }
 
 function buildCloseItemUrl(projectId: string, itemId: string): string {
-  return `${API_BASE_URL}/projects/${projectId}/risks-problems/${itemId}/close`;
+  const safeProjectId = checkProjectId(projectId);
+  return `${API_BASE_URL}/projects/${safeProjectId}/risks-problems/${itemId}/close`;
 }
 
 export const riskProblemService = {
@@ -268,9 +284,15 @@ export const riskProblemService = {
 
   async create(
     projectId: string,
-    form: RiskProblemFormData
+    form: RiskProblemFormData,
+    projectContext?: Pick<RiskProblemEntity, 'project_id' | 'openproject_project_id'>
   ): Promise<RiskProblemEntity> {
-    const body = mapFormToCreateRequest(form);
+    const safeProjectId = checkProjectId(projectId);
+    const resolvedContext = {
+      project_id: projectContext?.project_id ?? safeProjectId,
+      openproject_project_id: projectContext?.openproject_project_id ?? null
+    };
+    const body = mapFormToCreateRequest(form, resolvedContext);
     const payload = await requestJson<LegacyRiskProblemApiShape>(buildListUrl(projectId), { method: 'POST', body: JSON.stringify(body) });
     return mapLegacyApiToEntity(payload);
   },

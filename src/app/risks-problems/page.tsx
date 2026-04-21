@@ -35,12 +35,45 @@ const FILTER_MODE_LABELS: Record<Exclude<FilterMode, "all">, string> = {
  * 
  * URL: http://localhost:3000/risks-problems
  */
+type ProjectOption = {
+  id: string;
+  name: string;
+  openproject_project_id?: string | null;
+};
+
+const PROJECT_OPTIONS: ProjectOption[] = [
+  { id: '1', name: 'Projeto Alpha', openproject_project_id: '101' },
+  { id: '2', name: 'Projeto Beta', openproject_project_id: '102' },
+  { id: '3', name: 'Projeto Gamma', openproject_project_id: null },
+];
 
 export default function RisksProblemsPage() {
-  // ===== CONFIGURAÇÃO =====
-  // TODO: Pegar projectId de params ou contexto
-  // Por enquanto, vamos usar um ID fixo para testes
-  const PROJECT_ID = "1";
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+
+  const selectedProjectContext = useMemo(() => {
+    if (!selectedProjectId?.trim()) {
+      return undefined;
+    }
+
+    const selectedProject = PROJECT_OPTIONS.find(
+      (project) => project.id === selectedProjectId
+    );
+
+    if (!selectedProject) {
+      
+      return undefined;
+    }
+
+    return {
+      project_id: selectedProject.id,
+      openproject_project_id: selectedProject.openproject_project_id ?? null,
+    };
+  }, [selectedProjectId]);
+
+  const hasSelectedProject = useMemo(
+    () => Boolean(selectedProjectId?.trim()),
+    [selectedProjectId]
+  );
 
   // ===== ESTADO =====
   const {
@@ -57,20 +90,7 @@ export default function RisksProblemsPage() {
     historyLoadingItemId,
     historyError,
     loadHistory,
-  } = useRiskProblems(PROJECT_ID);
-
-  function getNumericClassification(item: RiskProblemListItem): number | null {
-    if (typeof item.classificacao_atual === "number") {
-      return item.classificacao_atual;
-    }
-
-    if (typeof item.classificacao_atual === "string") {
-      const parsed = Number(item.classificacao_atual);
-      return Number.isNaN(parsed) ? null : parsed;
-    }
-
-    return null;
-  }
+  } = useRiskProblems(selectedProjectId, selectedProjectContext);
 
   function isCriticalItem(item: RiskProblemListItem): boolean {
     const semantic = getCompositeScoreSemantic(item.classificacao_atual);
@@ -169,6 +189,10 @@ export default function RisksProblemsPage() {
   };
 
   const handleCreate = () => {
+    if (!hasSelectedProject) {
+      return;
+    }
+
     setSelectedItem(null);
     setIsDrawerOpen(true);
   };
@@ -212,6 +236,13 @@ export default function RisksProblemsPage() {
     setFilterMode("all");
   };
 
+  useEffect(() => {
+    setSelectedItem(null);
+    setIsDrawerOpen(false);
+    setFilterMode("all");
+  }, [selectedProjectId]);
+
+
 
   // ===== RENDERIZAÇÃO =====
   return (
@@ -219,141 +250,200 @@ export default function RisksProblemsPage() {
       {/* HEADER */}
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                Riscos e Problemas
-              </h1>
-              <p className="text-gray-600 mt-2">
-                Gerencie todos os riscos e problemas do seu projeto
-              </p>
-            </div>
-            <div className="flex gap-2">
-              {/* NOVO: Botões de filtro */}
-              <button
-                onClick={handleFilterMedio}
-                className="bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
-                disabled={filterMode === "média"}
-              >
-                Filtrar Criticidade Média
-              </button>
-              <button
-                onClick={handleFilterAtrasados}
-                className="bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
-                disabled={filterMode === "atrasado"}
-              >
-                Filtrar Atrasados
-              </button>
-              <button
-                onClick={handleFilterCritical}
-                className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
-                disabled={filterMode === "crítico"}
-              >
-                Filtrar Críticos
-              </button>
-              <button
-                onClick={handleFilterRisks}
-                className="bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
-                disabled={filterMode === "risco"}
-              >
-                Filtrar Riscos
-              </button>
-              <button
-                onClick={handleFilterProblems}
-                className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
-                disabled={filterMode === "problema"}
-              >
-                Filtrar Problemas
-              </button>
-              <button
-                onClick={handleClearFilter}
-                className="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
-                disabled={filterMode === "all"}
-              >
-                Todos
-              </button>
-              <button
-                onClick={handleCreate}
-                className="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors shadow-md ml-2"
-              >
-                + Adicionar Novo
-              </button>
-            </div>
-          </div>
-          {/* Indicador de filtro */}
-          {filterMode !== "all" && (
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-blue-800 font-medium">
-                Mostrando apenas {FILTER_MODE_LABELS[filterMode as Exclude<FilterMode, "all">]} ({filteredItems.length} itens)
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-3xl font-bold text-gray-900">
+                  Riscos e Problemas
+                </h1>
+                <p className="text-gray-600 mt-2">
+                  Gerencie riscos e problemas do projeto selecionado.
+                </p>
+
+                <div className="mt-4 max-w-md">
+                  <label
+                    htmlFor="project-select"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
+                    Projeto
+                  </label>
+                  <select
+                    id="project-select"
+                    value={selectedProjectId ?? ""}
+                    onChange={(event) =>
+                      setSelectedProjectId(event.target.value || null)
+                    }
+                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  >
+                    <option value="">Selecione um projeto</option>
+                    {PROJECT_OPTIONS.map((project) => (
+                      <option key={project.id} value={project.id}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-2 text-sm text-gray-500">
+                    Selecione um projeto para carregar a lista e habilitar as ações.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col items-start gap-4 lg:items-end">
+                <div className="flex flex-wrap gap-2 lg:justify-end">
+                  <button
+                    onClick={handleClearFilter}
+                    className="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    disabled={filterMode === "all"}
+                  >
+                    Todos
+                  </button>
+                  <button
+                    onClick={handleFilterRisks}
+                    className="bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    disabled={filterMode === "risco"}
+                  >
+                    Filtrar Riscos
+                  </button>
+                  <button
+                    onClick={handleFilterProblems}
+                    className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    disabled={filterMode === "problema"}
+                  >
+                    Filtrar Problemas
+                  </button>
+                  <button
+                    onClick={handleFilterCritical}
+                    className="bg-red-700 hover:bg-red-800 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    disabled={filterMode === "crítico"}
+                  >
+                    Filtrar Críticos
+                  </button>
+                  <button
+                    onClick={handleFilterAtrasados}
+                    className="bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    disabled={filterMode === "atrasado"}
+                  >
+                    Filtrar Atrasados
+                  </button>
+                  <button
+                    onClick={handleFilterMedio}
+                    className="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    disabled={filterMode === "média"}
+                  >
+                    Filtrar Criticidade Média
+                  </button>
+                </div>
+
                 <button
-                  onClick={handleClearFilter}
-                  className="ml-4 text-blue-600 hover:text-blue-800 underline text-sm"
+                  onClick={handleCreate}
+                  disabled={!hasSelectedProject}
+                  className="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors shadow-md disabled:bg-gray-400 disabled:shadow-none disabled:cursor-not-allowed"
                 >
-                  Limpar filtro
+                  + Adicionar Novo
                 </button>
-              </p>
+              </div>
             </div>
-          )}
+
+            {selectedProjectContext && (
+              <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+                <p className="text-sm font-medium text-green-800">
+                  Projeto ativo:{" "}
+                  <span className="font-semibold">
+                    {PROJECT_OPTIONS.find((project) => project.id === selectedProjectId)?.name}
+                  </span>
+                </p>
+                {selectedProjectContext.openproject_project_id && (
+                  <p className="mt-1 text-sm text-green-700">
+                    OpenProject: {selectedProjectContext.openproject_project_id}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {filterMode !== "all" && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-blue-800 font-medium">
+                  Mostrando apenas {FILTER_MODE_LABELS[filterMode as Exclude<FilterMode, "all">]} ({filteredItems.length} itens)
+                  <button
+                    onClick={handleClearFilter}
+                    className="ml-4 text-blue-600 hover:text-blue-800 underline text-sm"
+                  >
+                    Limpar filtro
+                  </button>
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
       {/* MAIN CONTENT */}
       <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* MENSAGEM DE ERRO */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-800 font-semibold">Erro ao carregar dados</p>
-            <p className="text-red-700 text-sm mt-1">{error}</p>
-            <button
-              onClick={() => loadItems()}
-              className="mt-3 text-red-600 hover:text-red-800 font-medium text-sm underline"
-            >
-              Tentar novamente
-            </button>
+        {!hasSelectedProject ? (
+          <div className="bg-white rounded-lg shadow p-8 border border-gray-200">
+            <h2 className="text-xl font-semibold text-gray-900">
+              Selecione um projeto
+            </h2>
+            <p className="text-gray-600 mt-2">
+              Escolha um projeto no topo da página para visualizar e gerenciar riscos e problemas.
+            </p>
           </div>
-        )}
+        ) : (
+          <>
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-800 font-semibold">Erro ao carregar dados</p>
+                <p className="text-red-700 text-sm mt-1">{error}</p>
+                <button
+                  onClick={() => loadItems()}
+                  className="mt-3 text-red-600 hover:text-red-800 font-medium text-sm underline"
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            )}
 
-        {/* TABELA */}
-        <div className="bg-white rounded-lg shadow">
-          <RiskProblemTable
-            items={filteredItems}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            loading={loading}
-          />
-        </div>
-
-        {/* RESUMO (Opcional) */}
-        {!loading && items.length > 0 && (
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white p-6 rounded-lg shadow">
-              <p className="text-gray-600 text-sm font-medium">Total de Itens</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
-                {summaryCounts.total}
-              </p>
+            <div className="bg-white rounded-lg shadow">
+              <RiskProblemTable
+                items={filteredItems}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                loading={loading}
+              />
             </div>
 
-            <div className="bg-white p-6 rounded-lg shadow">
-              <p className="text-gray-600 text-sm font-medium">Riscos</p>
-              <p className="text-3xl font-bold text-orange-600 mt-2">
-                  {summaryCounts.riscos}
-              </p>
-            </div>
+            {!loading && items.length > 0 && (
+              <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-white p-6 rounded-lg shadow">
+                  <p className="text-gray-600 text-sm font-medium">Total de Itens</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">
+                    {summaryCounts.total}
+                  </p>
+                </div>
 
-            <div className="bg-white p-6 rounded-lg shadow">
-              <p className="text-gray-600 text-sm font-medium">Problemas</p>
-              <p className="text-3xl font-bold text-red-600 mt-2">
-                  {summaryCounts.problemas}
-              </p>
-            </div>
+                <div className="bg-white p-6 rounded-lg shadow">
+                  <p className="text-gray-600 text-sm font-medium">Riscos</p>
+                  <p className="text-3xl font-bold text-orange-600 mt-2">
+                    {summaryCounts.riscos}
+                  </p>
+                </div>
 
-            <div className="bg-white p-6 rounded-lg shadow">
-              <p className="text-gray-600 text-sm font-medium">Críticos</p>
-              <p className="text-3xl font-bold text-red-700 mt-2">
-                  {summaryCounts.criticos}
-              </p>
-            </div>
-          </div>
+                <div className="bg-white p-6 rounded-lg shadow">
+                  <p className="text-gray-600 text-sm font-medium">Problemas</p>
+                  <p className="text-3xl font-bold text-red-600 mt-2">
+                    {summaryCounts.problemas}
+                  </p>
+                </div>
+
+                <div className="bg-white p-6 rounded-lg shadow">
+                  <p className="text-gray-600 text-sm font-medium">Críticos</p>
+                  <p className="text-3xl font-bold text-red-700 mt-2">
+                    {summaryCounts.criticos}
+                  </p>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </main>
 
