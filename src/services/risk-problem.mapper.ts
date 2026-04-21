@@ -360,6 +360,10 @@ function buildEntityId(value: unknown): string {
   return parsed ?? '';
 }
 
+function buildProjectIdFromLegacy(legacy: LegacyRiskProblemApiShape): string {
+    return toNullableString(legacy.project_id) || toNullableString(legacy.projeto_id) || '';
+}
+
 function normalizeHistoricoAutor(value: unknown): string | null {
   if (value === null || value === undefined) {
     return null;
@@ -537,7 +541,8 @@ export function mapLegacyApiToEntity(
 
   return {
     id: buildEntityId(legacy.id),
-    projeto_id: toNullableNumber(legacy.projeto_id),
+    project_id: buildProjectIdFromLegacy(legacy),
+    openproject_project_id: toNullableString(legacy.openproject_project_id),
     tipo_inicial,
     natureza_atual,
     status_operacional,
@@ -643,8 +648,10 @@ export function mapEntityToFormData(
 }
 
 export function mapFormToCreateRequest(
-  form: RiskProblemFormData
+  form: RiskProblemFormData,
+  context: Pick<RiskProblemEntity, 'project_id' | 'openproject_project_id'>
 ): RiskProblemCreateApiPayload {
+
   const tipo_inicial = form.tipo_inicial;
   const natureza_atual =
     form.natureza_atual ?? getDefaultNaturezaByTipoInicial(tipo_inicial);
@@ -671,6 +678,9 @@ export function mapFormToCreateRequest(
     natureza_atual,
     status_operacional,
     origem,
+    project_id: context.project_id,
+    openproject_project_id: context.openproject_project_id ?? null,
+   
 
     descricao: sanitizeRequiredText(form.descricao),
     causa_raiz: sanitizeRequiredText(form.causa_raiz),

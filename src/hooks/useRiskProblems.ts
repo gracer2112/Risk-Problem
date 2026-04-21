@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState , useEffect} from 'react';
 
 import type {
   CloseRiskProblemFormData,
@@ -20,6 +20,8 @@ type ListFilters = {
   natureza?: string;
   status?: string;
 };
+
+type ProjectContext = Pick<RiskProblemEntity, 'project_id' | 'openproject_project_id'>;
 
 type UseRiskProblemsReturn = {
   items: RiskProblemListItem[];
@@ -61,7 +63,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-export function useRiskProblems(projectId: string): UseRiskProblemsReturn {
+export function useRiskProblems(projectId?: string | null, projectContext?: ProjectContext): UseRiskProblemsReturn {
   const [items, setItems] = useState<RiskProblemListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +72,22 @@ export function useRiskProblems(projectId: string): UseRiskProblemsReturn {
   >({});
   const [historyLoadingItemId, setHistoryLoadingItemId] = useState<string | null>(null);
   const [historyError, setHistoryError] = useState<string | null>(null);
+
+  useEffect(() => {
+      setItems([]);
+      setError(null);
+      setHistoryByItemId({});
+      setHistoryLoadingItemId(null);
+      setHistoryError(null);
+      setLoading(false);
+  }, [projectId]);
+
+  const requireProjectId = useCallback((): string => {
+    if (!projectId || !projectId.trim()) {
+      throw new Error('Projeto não selecionado para operação de riscos e problemas.');
+    }
+    return projectId.trim();
+  }, [projectId]);
 
   const clearError = useCallback(() => {
     setError(null);
@@ -139,44 +157,43 @@ export function useRiskProblems(projectId: string): UseRiskProblemsReturn {
     });
   }, []);
   
-  const loadItems = useCallback(
-    async (filters?: ListFilters): Promise<void> => {
-      setLoading(true);
+  const loadItems = useCallback(async (filters?: ListFilters): Promise<void> => {
+    if (!projectId || !projectId.trim()) {
+      setItems([]);
       setError(null);
+      return;
+    }
 
-      try {
-        const response = await riskProblemService.list(projectId, filters);
-        setItems(response.items);
-      } catch (err) {
-        setHandledError(
-          err,
-          'Não foi possível carregar os riscos e problemas.'
-        );
-        throw err;
-      } finally {
-        setLoading(false);
-      }
-    },
-    [projectId, setHandledError]
-  );
+    setLoading(true);
+    setError(null);
+
+    try {
+      const safeProjectId = requireProjectId();
+      const response = await riskProblemService.list(safeProjectId, filters);
+      setItems(response.items);
+    } catch (err) {
+      setHandledError(err, 'Não foi possível carregar os riscos e problemas.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId, requireProjectId, setHandledError]);
 
   const getItemById = useCallback(
     async (itemId: string): Promise<RiskProblemEntity> => {
       setError(null);
 
       try {
-        const entity = await riskProblemService.getById(projectId, itemId);
+        const safeProjectId = requireProjectId();
+        const entity = await riskProblemService.getById(safeProjectId, itemId);
         upsertListItem(entity);
         return entity;
       } catch (err) {
-        setHandledError(
-          err,
-          'Não foi possível carregar o item selecionado.'
-        );
+        setHandledError(err, 'Não foi possível carregar o item selecionado.');
         throw err;
       }
     },
-    [projectId, setHandledError, upsertListItem]
+    [requireProjectId, setHandledError, upsertListItem]
   );
 
   const loadHistory = useCallback(
@@ -196,7 +213,9 @@ export function useRiskProblems(projectId: string): UseRiskProblemsReturn {
       setHistoryLoadingItemId(itemId);
 
       try {
-        const response = await riskProblemService.getHistory(projectId, itemId);
+        const safeProjectId = requireProjectId();
+
+        const response = await riskProblemService.getHistory(safeProjectId, itemId);
 
         setHistoryByItemId((prev) => ({
           ...prev,
@@ -218,25 +237,25 @@ export function useRiskProblems(projectId: string): UseRiskProblemsReturn {
         );
       }
     },
-    [projectId, historyByItemId]
+    [requireProjectId, historyByItemId]
   );
 
-  const createItem = useCallback(
-    async (form: RiskProblemFormData): Promise<RiskProblemEntity> => {
-      setError(null);
-
-      try {
-        const createdEntity = await riskProblemService.create(projectId, form);
-        upsertListItem(createdEntity);
-        return createdEntity;
-
-      } catch (err) {
-        setHandledError(err, 'Não foi possível criar o item.');
-        throw err;
-      }
-    },
-    [projectId, setHandledError,upsertListItem]
-  );
+  const createItem = useCallback(async (form: RiskProblemFormData): Promise<RiskProblemEntity> => {
+    setError(null);
+    try {
+      const safeProjectId = requireProjectId();
+      const resolvedProjectContext = {
+        project_id: projectContext?.project_id ?? safeProjectId,
+        openproject_project_id: projectContext?.openproject_project_id ?? null
+      };
+      const createdEntity = await riskProblemService.create(safeProjectId, form, resolvedProjectContext);
+      upsertListItem(createdEntity);
+      return createdEntity;
+    } catch (err) {
+      setHandledError(err, 'Não foi possível criar o item.');
+      throw err;
+    }
+  }, [requireProjectId, projectContext, setHandledError, upsertListItem]);
 
   const updateItem = useCallback(
     async (
@@ -247,11 +266,13 @@ export function useRiskProblems(projectId: string): UseRiskProblemsReturn {
       setError(null);
 
       try {
+        const safeProjectId = requireProjectId();
+ 
         const updatedEntity = await riskProblemService.update(
-          projectId,
+          safeProjectId,
           itemId,
           form,
-          original
+          original,
         );
 
         upsertListItem(updatedEntity);
@@ -265,7 +286,7 @@ export function useRiskProblems(projectId: string): UseRiskProblemsReturn {
         throw err;
       }
     },
-    [projectId, setHandledError, upsertListItem, invalidateHistory]
+    [requireProjectId, setHandledError, upsertListItem, invalidateHistory]
   );
 
   const convertToProblem = useCallback(
@@ -276,9 +297,11 @@ export function useRiskProblems(projectId: string): UseRiskProblemsReturn {
       setError(null);
 
       try {
+        const safeProjectId = requireProjectId();
+
         const convertedEntity =
           await riskProblemService.convertRiskToProblem(
-            projectId,
+            safeProjectId,
             itemId,
             payload
           );
@@ -295,7 +318,7 @@ export function useRiskProblems(projectId: string): UseRiskProblemsReturn {
         throw err;
       }
     },
-    [projectId, setHandledError, upsertListItem, invalidateHistory]
+    [requireProjectId, setHandledError, upsertListItem, invalidateHistory]
   );
 
   const closeItem = useCallback(
@@ -306,8 +329,10 @@ export function useRiskProblems(projectId: string): UseRiskProblemsReturn {
       setError(null);
 
       try {
+        const safeProjectId = requireProjectId();
+
         const closedEntity = await riskProblemService.closeItem(
-          projectId,
+          safeProjectId,
           item,
           form
         );
@@ -324,15 +349,19 @@ export function useRiskProblems(projectId: string): UseRiskProblemsReturn {
         throw err;
       }
     },
-    [projectId, setHandledError, upsertListItem, invalidateHistory]
+    [requireProjectId, setHandledError, upsertListItem, invalidateHistory]
   );
 
   const deleteItem = useCallback(
-    async (itemId: string): Promise<void> => {
+    async (
+      itemId: string 
+    ): Promise<void> => {
       setError(null);
 
       try {
-        await riskProblemService.delete(projectId, itemId);
+        const safeProjectId = requireProjectId();
+ 
+        await riskProblemService.delete(safeProjectId, itemId);
 
         setItems((prev) => prev.filter((item) => item.id !== itemId));
         clearHistory(itemId);
@@ -341,7 +370,7 @@ export function useRiskProblems(projectId: string): UseRiskProblemsReturn {
         throw err;
       }
     },
-    [projectId, setHandledError, clearHistory]
+    [requireProjectId, setHandledError, clearHistory]
   );
 
   return {

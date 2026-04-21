@@ -57,6 +57,10 @@ export type SimNaoValue = 'sim' | 'nao';
 
 export type DateString = string;
 
+export type ProjectId = string;
+
+export type OpenProjectProjectId = string;
+
 export type ConvertRiskToProblemRequest = {
   transitionedAt: DateString;
   transitionReason: string;
@@ -121,7 +125,8 @@ export interface HistoricoEvento {
 
 export interface RiskProblemBase {
   id: string;
-  projeto_id?: number | null;
+  project_id: ProjectId
+  openproject_project_id?: OpenProjectProjectId | null 
   tipo_inicial: TipoInicialEnum;
   natureza_atual: NaturezaAtualEnum;
   status_operacional: StatusOperacional;
@@ -263,6 +268,8 @@ export interface RiskProblemFormData {
  */
 export interface RiskProblemCreateRequest {
   tipo_inicial: TipoInicialEnum;
+  project_id: ProjectId
+  openproject_project_id?: OpenProjectProjectId | null
 
   descricao: string;
   causa_raiz: string;
@@ -290,6 +297,8 @@ export interface RiskProblemCreateRequest {
  * - NÃO permite tipo_inicial
  * - NÃO expõe natureza_atual para alteração livre
  * - status_operacional é permitido, desde que compatível com a natureza atual do item
+ * - não permite alteração de project_id
+ * - não permite alteração de openproject_project_id no update genérico
  */
 export interface RiskProblemUpdateRequest {
   descricao?: string;
@@ -506,6 +515,8 @@ export interface LegacyRiskProblemHistoryResponseShape {
 export interface LegacyRiskProblemApiShape {
   id?: string | number;
   projeto_id?: string | number;
+  openproject_project_id?: string | number;
+  project_id?: string | number;
 
   tipo_inicial?: string;
   natureza_atual?: string;
