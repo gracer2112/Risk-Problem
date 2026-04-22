@@ -62,8 +62,6 @@ export default function RisksProblemsPage() {
     return buildProjectSelectionContext(selectedProject);
   }, [selectedProject]);
 
-
-
   const hasSelectedProject = useMemo(
     () => Boolean(selectedProjectContext?.project_id),
     [selectedProjectContext]
@@ -81,9 +79,10 @@ export default function RisksProblemsPage() {
         }
         if (catalog.length > 0) {
           setProjectsCatalog(catalog);
+          setCatalogError(null);
         } else {
           setProjectsCatalog([]);
-          setCatalogError("Nenhum projeto disponível no catálogo.");
+          setCatalogError(null);
         }
       } catch {
         if (isMounted) {
@@ -284,7 +283,6 @@ export default function RisksProblemsPage() {
   }, [selectedProjectId]);
 
 
-
   // ===== RENDERIZAÇÃO =====
   return (
     <div className="min-h-screen bg-gray-100">
@@ -317,16 +315,8 @@ export default function RisksProblemsPage() {
                       onChange={(event) => setSelectedProjectId(event.target.value || null)}
                     >
                       <option value="">
-                        {catalogLoading ? (
-                          <p className="mt-2 text-sm text-blue-600">Carregando projetos...</p>
-                        ) : catalogError ? (
-                          <p className="mt-2 text-sm text-amber-700">{catalogError}</p>
-                        ) : projectsCatalog.length === 0 ? (
-                          <p className="mt-2 text-sm text-gray-500">Nenhum projeto disponível para seleção.</p>
-                        ) : (
-                          <p className="mt-2 text-sm text-gray-500">Selecione um projeto para carregar a lista e habilitar as ações.</p>
-                        )}
-                        </option>
+                        Selecione um projeto
+                      </option>
                       {projectsCatalog.map((project) => (
                         <option key={project.id} value={project.id}>
                           {project.name}
@@ -335,10 +325,10 @@ export default function RisksProblemsPage() {
                     </select>
                     {catalogLoading ? (
                       <p className="mt-2 text-sm text-blue-600">Carregando projetos...</p>
+                    ) : catalogError ? (
+                      <p className="mt-2 text-sm text-amber-700">{catalogError}</p>
                     ) : projectsCatalog.length === 0 ? (
                       <p className="mt-2 text-sm text-gray-500">Nenhum projeto disponível para seleção.</p>
-                    ) : selectedProjectId ? (
-                      <p className="mt-2 text-sm text-gray-500">Selecione um projeto para carregar a lista e habilitar as ações.</p>
                     ) : (
                       <p className="mt-2 text-sm text-gray-500">Selecione um projeto para carregar a lista e habilitar as ações.</p>
                     )}
@@ -501,7 +491,6 @@ export default function RisksProblemsPage() {
         )}
       </main>
 
-      {/* DRAWER (Vamos criar depois) */}
       { isDrawerOpen && (
         <RiskProblemDrawer
           isOpen={isDrawerOpen}
