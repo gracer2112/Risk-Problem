@@ -76,6 +76,7 @@ export function useRiskProblems(projectId?: string | null, projectContext?: Proj
   const latestLoadItemsRequestId = useRef(0);
 
   useEffect(() => {
+      latestLoadItemsRequestId.current++;
       setItems([]);
       setError(null);
       setHistoryByItemId({});
