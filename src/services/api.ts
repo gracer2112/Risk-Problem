@@ -13,6 +13,11 @@ import type {
   RiskProblemHistoryResponse,
 } from '@/types/risk-problem';
 
+import type {
+  ProjectCatalogListResponse,
+} from '@/types/project-catalog';
+
+
 import {
   mapCloseFormToRequest,
   mapApiListToListItems,
@@ -21,6 +26,11 @@ import {
   mapLegacyApiToEntity,
   mapApiHistoryToHistoryResponse,
 } from '@/services/risk-problem.mapper';
+
+import {
+  mapProjectCatalogResponse,
+  type RawProjectCatalogResponse,
+} from '@/services/project-catalog.mapper';
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
@@ -157,6 +167,11 @@ function toOptionalNumber(value: unknown): number | undefined {
   return undefined;
 }
 
+function buildProjectsCatalogUrl(): string {
+  return `${API_BASE_URL}/projects/catalog`;
+}
+
+
 function buildRequestInit(init?: RequestInit): RequestInit {
   return {
     ...init,
@@ -203,6 +218,7 @@ type RawListResponse =
       pageSize?: unknown;
     };
 
+
 function buildListUrl(projectId: string, filters?: ListFilters): string {
   const safeProjectId = checkProjectId(projectId);
   const url = new URL(`${API_BASE_URL}/projects/${safeProjectId}/risks-problems`);
@@ -242,6 +258,15 @@ function buildCloseItemUrl(projectId: string, itemId: string): string {
 }
 
 export const riskProblemService = {
+  async listProjectsCatalog(): Promise<ProjectCatalogListResponse> {
+    const payload = await requestJson<RawProjectCatalogResponse>(
+      buildProjectsCatalogUrl(),
+      { method: 'GET' }
+    );
+
+    return mapProjectCatalogResponse(payload);
+  },
+
   async list(projectId: string, filters?: ListFilters): Promise<RiskProblemListResponse> {
     const payload = await requestJson<RawListResponse>(buildListUrl(projectId, filters), { method: 'GET' });
 

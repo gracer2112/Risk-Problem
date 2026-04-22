@@ -17,6 +17,11 @@ import {
   type RiskProblemListItem,
 } from "@/types/risk-problem";
 
+import { riskProblemService } from "@/services/api";
+
+import type { ProjectCatalogItem } from "@/types/project-catalog";
+import { buildProjectSelectionContext } from "@/types/project-catalog";
+
 type FilterMode = "all" | "risco" | "problema" | "crítico" | "atrasado" | "média";
 
 const FILTER_MODE_LABELS: Record<Exclude<FilterMode, "all">, string> = {
@@ -35,45 +40,67 @@ const FILTER_MODE_LABELS: Record<Exclude<FilterMode, "all">, string> = {
  * 
  * URL: http://localhost:3000/risks-problems
  */
-type ProjectOption = {
-  id: string;
-  name: string;
-  openproject_project_id?: string | null;
-};
-
-const PROJECT_OPTIONS: ProjectOption[] = [
-  { id: '1', name: 'Projeto Alpha', openproject_project_id: '101' },
-  { id: '2', name: 'Projeto Beta', openproject_project_id: '102' },
-  { id: '3', name: 'Projeto Gamma', openproject_project_id: null },
-];
 
 export default function RisksProblemsPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
-  const selectedProjectContext = useMemo(() => {
+  const [projectsCatalog, setProjectsCatalog] = useState<ProjectCatalogItem[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+
+  const selectedProject = useMemo(() => {
     if (!selectedProjectId?.trim()) {
       return undefined;
     }
-
-    const selectedProject = PROJECT_OPTIONS.find(
-      (project) => project.id === selectedProjectId
-    );
-
+    return projectsCatalog.find((project) => project.id === selectedProjectId);
+  }, [selectedProjectId, projectsCatalog]);
+  
+  const selectedProjectContext = useMemo(() => {
     if (!selectedProject) {
-      
       return undefined;
     }
+    return buildProjectSelectionContext(selectedProject);
+  }, [selectedProject]);
 
-    return {
-      project_id: selectedProject.id,
-      openproject_project_id: selectedProject.openproject_project_id ?? null,
-    };
-  }, [selectedProjectId]);
+
 
   const hasSelectedProject = useMemo(
-    () => Boolean(selectedProjectId?.trim()),
-    [selectedProjectId]
+    () => Boolean(selectedProjectContext?.project_id),
+    [selectedProjectContext]
   );
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadCatalog = async () => {
+      setCatalogLoading(true);
+      setCatalogError(null);
+      try {
+        const catalog = await riskProblemService.listProjectsCatalog();
+        if (!isMounted) {
+          return;
+        }
+        if (catalog.length > 0) {
+          setProjectsCatalog(catalog);
+        } else {
+          setProjectsCatalog([]);
+          setCatalogError("Nenhum projeto disponível no catálogo.");
+        }
+      } catch {
+        if (isMounted) {
+          setProjectsCatalog([]);
+          setCatalogError("Não foi possível carregar o catálogo de projetos.");
+        }
+      } finally {
+        if (isMounted) {
+          setCatalogLoading(false);
+        }
+      }
+    };
+    void loadCatalog();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // ===== ESTADO =====
   const {
@@ -237,6 +264,20 @@ export default function RisksProblemsPage() {
   };
 
   useEffect(() => {
+    if (!selectedProjectId?.trim()) {
+      return;
+    }
+
+    const exists = projectsCatalog.some(
+      (project) => project.id === selectedProjectId
+    );
+
+    if (!exists) {
+      setSelectedProjectId(null);
+    }
+  }, [selectedProjectId, projectsCatalog]);
+
+  useEffect(() => {
     setSelectedItem(null);
     setIsDrawerOpen(false);
     setFilterMode("all");
@@ -267,24 +308,40 @@ export default function RisksProblemsPage() {
                   >
                     Projeto
                   </label>
-                  <select
-                    id="project-select"
-                    value={selectedProjectId ?? ""}
-                    onChange={(event) =>
-                      setSelectedProjectId(event.target.value || null)
-                    }
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                  >
-                    <option value="">Selecione um projeto</option>
-                    {PROJECT_OPTIONS.map((project) => (
-                      <option key={project.id} value={project.id}>
-                        {project.name}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-2 text-sm text-gray-500">
-                    Selecione um projeto para carregar a lista e habilitar as ações.
-                  </p>
+                    <select
+                      value={selectedProjectId ?? ""}
+                      id="project-select"
+                      className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                      disabled={catalogLoading}
+                      aria-busy={catalogLoading}
+                      onChange={(event) => setSelectedProjectId(event.target.value || null)}
+                    >
+                      <option value="">
+                        {catalogLoading ? (
+                          <p className="mt-2 text-sm text-blue-600">Carregando projetos...</p>
+                        ) : catalogError ? (
+                          <p className="mt-2 text-sm text-amber-700">{catalogError}</p>
+                        ) : projectsCatalog.length === 0 ? (
+                          <p className="mt-2 text-sm text-gray-500">Nenhum projeto disponível para seleção.</p>
+                        ) : (
+                          <p className="mt-2 text-sm text-gray-500">Selecione um projeto para carregar a lista e habilitar as ações.</p>
+                        )}
+                        </option>
+                      {projectsCatalog.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </select>
+                    {catalogLoading ? (
+                      <p className="mt-2 text-sm text-blue-600">Carregando projetos...</p>
+                    ) : projectsCatalog.length === 0 ? (
+                      <p className="mt-2 text-sm text-gray-500">Nenhum projeto disponível para seleção.</p>
+                    ) : selectedProjectId ? (
+                      <p className="mt-2 text-sm text-gray-500">Selecione um projeto para carregar a lista e habilitar as ações.</p>
+                    ) : (
+                      <p className="mt-2 text-sm text-gray-500">Selecione um projeto para carregar a lista e habilitar as ações.</p>
+                    )}
                 </div>
               </div>
 
@@ -347,10 +404,7 @@ export default function RisksProblemsPage() {
             {selectedProjectContext && (
               <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3">
                 <p className="text-sm font-medium text-green-800">
-                  Projeto ativo:{" "}
-                  <span className="font-semibold">
-                    {PROJECT_OPTIONS.find((project) => project.id === selectedProjectId)?.name}
-                  </span>
+                  Projeto ativo: <span className="font-semibold">{selectedProject?.name}</span>
                 </p>
                 {selectedProjectContext.openproject_project_id && (
                   <p className="mt-1 text-sm text-green-700">

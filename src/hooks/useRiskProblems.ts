@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useCallback, useState , useEffect} from 'react';
+import { useCallback, useState , useEffect, useRef} from 'react';
 
 import type {
   CloseRiskProblemFormData,
@@ -72,6 +72,8 @@ export function useRiskProblems(projectId?: string | null, projectContext?: Proj
   >({});
   const [historyLoadingItemId, setHistoryLoadingItemId] = useState<string | null>(null);
   const [historyError, setHistoryError] = useState<string | null>(null);
+
+  const latestLoadItemsRequestId = useRef(0);
 
   useEffect(() => {
       setItems([]);
@@ -158,27 +160,29 @@ export function useRiskProblems(projectId?: string | null, projectContext?: Proj
   }, []);
   
   const loadItems = useCallback(async (filters?: ListFilters): Promise<void> => {
+    const currentRequestId = ++latestLoadItemsRequestId.current;
     if (!projectId || !projectId.trim()) {
       setItems([]);
       setError(null);
+      setLoading(false);
       return;
     }
-
     setLoading(true);
     setError(null);
-
+    const safeProjectId = requireProjectId();
     try {
-      const safeProjectId = requireProjectId();
       const response = await riskProblemService.list(safeProjectId, filters);
+      if (currentRequestId !== latestLoadItemsRequestId.current) return;
       setItems(response.items);
     } catch (err) {
+      if (currentRequestId !== latestLoadItemsRequestId.current) return;
       setHandledError(err, 'Não foi possível carregar os riscos e problemas.');
-      throw err;
     } finally {
-      setLoading(false);
+      if (currentRequestId === latestLoadItemsRequestId.current) {
+        setLoading(false);
+      }
     }
   }, [projectId, requireProjectId, setHandledError]);
-
   const getItemById = useCallback(
     async (itemId: string): Promise<RiskProblemEntity> => {
       setError(null);
