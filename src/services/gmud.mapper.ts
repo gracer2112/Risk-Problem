@@ -28,7 +28,6 @@ import {
   normalizeChecklistGMUD,
   normalizeHistoricoGMUD,
   normalizeRollbackGMUD,
-  /* outros possivelmente existentes */
 } from '@/utils/gmud-domain';
 
 export interface GMUDApiShape {

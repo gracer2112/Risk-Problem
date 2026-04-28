@@ -38,12 +38,6 @@ import {
   isClosedItem,
 } from '@/utils/risk-problem-domain';
 
-import {
-  mapEntityToFormData 
-} from '@/services/risk-problem.mapper';
-
-import { riskProblemService } from '@/services/api';
-
 import type { SemanticTone } from '@/utils/risk-problem-semantics';
 import {
   getFivePointScaleSemantic,
@@ -107,7 +101,7 @@ function normalizeDateInputValue(value?: string | null): string | null {
 }
 
 function mapItemToFormData(item: RiskProblemEntity): RiskProblemFormData {
-  const formData = mapEntityToFormData(item);
+
   return {
     tipo_inicial: item.tipo_inicial,
     natureza_atual: item.natureza_atual,
@@ -162,22 +156,6 @@ function formatEnumLabel(value: string): string {
     .split('_')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
-}
-
-function getDefaultStatusByTipoInicial(
-  tipo_inicial: TipoInicialEnum
-): StatusRiscoEnum | StatusProblemaEnum {
-  return tipo_inicial === TipoInicialEnum.RISCO
-    ? StatusRiscoEnum.IDENTIFICADO
-    : StatusProblemaEnum.ABERTO;
-}
-
-function getDefaultNaturezaByTipoInicial(
-  tipo_inicial: TipoInicialEnum
-): NaturezaAtualEnum {
-  return tipo_inicial === TipoInicialEnum.RISCO
-    ? NaturezaAtualEnum.RISCO
-    : NaturezaAtualEnum.PROBLEMA;
 }
 
 function FieldError({ message }: { message?: string }) {

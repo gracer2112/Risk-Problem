@@ -1,21 +1,17 @@
 // src/components/gmud/GMUDDrawer.tsx
 
+import { 
+  ChecklistItemGMUD, 
+  HistoricoItemGMUD, 
+  StatusGMUD, 
+  PrioridadeGMUD, 
+  ImpactoGMUD, 
+  AmbienteGMUD,
+  OrigemGMUD,
+  TipoExecucaoGMUD
+} from "@/types/gmud";
+
 export type GMUDDrawerMode = 'create' | 'edit' | 'view';
-
-export type GMUDDrawerChecklistItem = {
-  id: string;
-  descricao: string;
-  status?: string;
-  observacao?: string | null;
-};
-
-export type GMUDDrawerHistoryItem = {
-  id: string;
-  timestamp?: string | null;
-  tipoEvento?: string | null;
-  usuarioNome?: string | null;
-  observacao?: string | null;
-};
 
 export type GMUDDrawerProps = {
   open?: boolean;
@@ -23,24 +19,24 @@ export type GMUDDrawerProps = {
   loading?: boolean;
   saving?: boolean;
   deleting?: boolean;
-  title?: string;
-  description?: string;
-  projectName?: string;
-  openProjectProjectId?: string | null;
-  status?: string;
-  prioridade?: string;
-  impacto?: string;
-  ambiente?: string;
-  tipoExecucao?: string;
-  origem?: string;
-  dataAgendada?: string | null;
-  janelaExecucaoInicio?: string | null;
-  janelaExecucaoFim?: string | null;
+  titulo?: string;
+  descricao?: string;
+  //projectName?: string;
+  openproject_project_id?: string | null;
+  status?: StatusGMUD;
+  prioridade?: PrioridadeGMUD;
+  impacto?: ImpactoGMUD;
+  ambiente?: AmbienteGMUD;
+  tipo_execucao?: TipoExecucaoGMUD;
+  origem?: OrigemGMUD;
+  data_agendada?: string | null;
+  janela_execucao_inicio?: string | null;
+  janela_execucao_fim?: string | null;
   solicitante?: string | null;
-  responsavelExecucao?: string | null;
-  planoRollback?: string | null;
-  checklistItems?: GMUDDrawerChecklistItem[];
-  historyItems?: GMUDDrawerHistoryItem[];
+  responsavel_execucao?: string | null;
+  plano_rollback?: string | null;
+  itens_checklist?: ChecklistItemGMUD[];
+  historico?: HistoricoItemGMUD[];
   error?: string | null;
   submitLabel?: string;
   deleteLabel?: string;
@@ -50,12 +46,12 @@ export type GMUDDrawerProps = {
   onDelete?: () => void;
   onTitleChange?: (value: string) => void;
   onDescriptionChange?: (value: string) => void;
-  onStatusChange?: (value: string) => void;
-  onPrioridadeChange?: (value: string) => void;
-  onImpactoChange?: (value: string) => void;
-  onAmbienteChange?: (value: string) => void;
-  onTipoExecucaoChange?: (value: string) => void;
-  onOrigemChange?: (value: string) => void;
+  onStatusChange?: (value: StatusGMUD) => void;
+  onPrioridadeChange?: (value: PrioridadeGMUD) => void;
+  onImpactoChange?: (value: ImpactoGMUD) => void;
+  onAmbienteChange?: (value: AmbienteGMUD) => void;
+  onTipoExecucaoChange?: (value: TipoExecucaoGMUD) => void;
+  onOrigemChange?: (value: OrigemGMUD) => void;
   onDataAgendadaChange?: (value: string) => void;
   onJanelaExecucaoInicioChange?: (value: string) => void;
   onJanelaExecucaoFimChange?: (value: string) => void;
@@ -64,12 +60,12 @@ export type GMUDDrawerProps = {
   onPlanoRollbackChange?: (value: string) => void;
 };
 
-type Option = {
+type Option <T extends string = string> = {
   value: string;
   label: string;
 };
 
-const STATUS_OPTIONS: Option[] = [
+const STATUS_OPTIONS: Option<StatusGMUD>[] = [
   { value: 'rascunho', label: 'Rascunho' },
   { value: 'em_revisao', label: 'Em Revisão' },
   { value: 'aprovado', label: 'Aprovado' },
@@ -81,32 +77,32 @@ const STATUS_OPTIONS: Option[] = [
   { value: 'rollback', label: 'Rollback' },
 ];
 
-const PRIORIDADE_OPTIONS: Option[] = [
+const PRIORIDADE_OPTIONS: Option<PrioridadeGMUD>[] = [
   { value: 'baixa', label: 'Baixa' },
   { value: 'media', label: 'Média' },
   { value: 'alta', label: 'Alta' },
   { value: 'critica', label: 'Crítica' },
 ];
 
-const IMPACTO_OPTIONS: Option[] = [
+const IMPACTO_OPTIONS: Option<ImpactoGMUD>[] = [
   { value: 'baixo', label: 'Baixo' },
   { value: 'medio', label: 'Médio' },
   { value: 'alto', label: 'Alto' },
   { value: 'critico', label: 'Crítico' },
 ];
 
-const AMBIENTE_OPTIONS: Option[] = [
+const AMBIENTE_OPTIONS: Option<AmbienteGMUD>[] = [
   { value: 'desenvolvimento', label: 'Desenvolvimento' },
   { value: 'homologacao', label: 'Homologação' },
   { value: 'producao', label: 'Produção' },
 ];
 
-const TIPO_EXECUCAO_OPTIONS: Option[] = [
+const TIPO_EXECUCAO_OPTIONS: Option<TipoExecucaoGMUD>[] = [
   { value: 'manual', label: 'Manual' },
   { value: 'automatica', label: 'Automática' },
 ];
 
-const ORIGEM_OPTIONS: Option[] = [
+const ORIGEM_OPTIONS: Option<OrigemGMUD>[] = [
   { value: 'interna', label: 'Interna' },
   { value: 'cliente', label: 'Cliente' },
   { value: 'fornecedor', label: 'Fornecedor' },
@@ -217,7 +213,7 @@ function ViewField({
 }
 
 
-function EditField({
+function EditField<T extends string = string>({
   label,
   value,
   onChange,
@@ -227,10 +223,10 @@ function EditField({
   inputType = 'text',
 }: {
   label: string;
-  value?: string | null;
-  onChange?: (value: string) => void;
+  value?: T | null;
+  onChange?: (value: T) => void;
   disabled: boolean;
-  options?: Option[];
+  options?: Option<T>[];
   textarea?: boolean;
   inputType?: 'text' | 'date' | 'time';
 }) {
@@ -241,7 +237,7 @@ function EditField({
         <select
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
           value={value ?? ''}
-          onChange={(e) => onChange?.(e.target.value)}
+          onChange={(e) => onChange?.(e.target.value as T)}
           disabled={disabled}
         >
           <option value="">Selecione uma opção</option>
@@ -255,7 +251,7 @@ function EditField({
         <textarea
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm min-h-[96px] resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
           value={value ?? ''}
-          onChange={(e) => onChange?.(e.target.value)}
+          onChange={(e) => onChange?.(e.target.value as T)}
           disabled={disabled}
           rows={4}
         />
@@ -264,7 +260,7 @@ function EditField({
           type={inputType}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
           value={value ?? ''}
-          onChange={(e) => onChange?.(e.target.value)}
+          onChange={(e) => onChange?.(e.target.value as T)}
           disabled={disabled}
         />
       )}
@@ -279,24 +275,24 @@ export default function GMUDDrawer(props: GMUDDrawerProps) {
     loading = false,
     saving = false,
     deleting = false,
-    title,
-    description,
-    projectName,
-    openProjectProjectId,
+    titulo,
+    descricao,
+    //projectName,
+    openproject_project_id,
     status,
     prioridade,
     impacto,
     ambiente,
-    tipoExecucao,
+    tipo_execucao,
     origem,
-    dataAgendada,
-    janelaExecucaoInicio,
-    janelaExecucaoFim,
+    data_agendada,
+    janela_execucao_inicio,
+    janela_execucao_fim,
     solicitante,
-    responsavelExecucao,
-    planoRollback,
-    checklistItems = [],
-    historyItems = [],
+    responsavel_execucao,
+    plano_rollback,
+    itens_checklist = [],
+    historico = [],
     error,
     submitLabel,
     deleteLabel,
@@ -376,30 +372,30 @@ export default function GMUDDrawer(props: GMUDDrawerProps) {
                 <div className="grid grid-cols-1 gap-4">
                   {isView ? (
                     <>
-                      <ViewField label="Título" value={title} />
-                      <ViewField label="Descrição" value={description} multiline />
+                      <ViewField label="Título" value={titulo} />
+                      <ViewField label="Descrição" value={descricao} multiline />
                     </>
                   ) : (
                     <>
-                      <EditField label="Título" value={title} onChange={onTitleChange} disabled={isFieldDisabled} />
-                      <EditField label="Descrição" value={description} onChange={onDescriptionChange} disabled={isFieldDisabled} textarea />
+                      <EditField label="Título" value={titulo} onChange={onTitleChange} disabled={isFieldDisabled} />
+                      <EditField label="Descrição" value={descricao} onChange={onDescriptionChange} disabled={isFieldDisabled} textarea />
                     </>
                   )}
 
-                  {projectName && (
+                  {/* {projectName && (
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-gray-700 leading-4">Projeto</label>
                       <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-sm text-indigo-950">
                         {projectName}
                       </div>
                     </div>
-                  )}
+                  )} */}
 
-                  {openProjectProjectId && (
+                  {openproject_project_id && (
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-gray-700 leading-4">OpenProject</label>
                       <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-950">
-                        {openProjectProjectId}
+                        {openproject_project_id}
                       </div>
                     </div>
                   )}
@@ -426,20 +422,20 @@ export default function GMUDDrawer(props: GMUDDrawerProps) {
                   {isView ? (
                     <>
                       <ViewField label="Ambiente" value={ambiente} field="ambiente" />
-                      <ViewField label="Tipo de Execução" value={tipoExecucao} field="tipoExecucao" />
+                      <ViewField label="Tipo de Execução" value={tipo_execucao} field="tipoExecucao" />
                       <ViewField label="Origem" value={origem} field="origem" />
-                      <ViewField label="Data Agendada" value={dataAgendada} />
-                      <ViewField label="Janela de Execução Início" value={janelaExecucaoInicio} />
-                      <ViewField label="Janela de Execução Fim" value={janelaExecucaoFim} />
+                      <ViewField label="Data Agendada" value={data_agendada} />
+                      <ViewField label="Janela de Execução Início" value={janela_execucao_inicio} />
+                      <ViewField label="Janela de Execução Fim" value={janela_execucao_fim} />
                     </>
                   ) : (
                     <>
                       <EditField label="Ambiente" value={ambiente} onChange={onAmbienteChange} disabled={isFieldDisabled} options={AMBIENTE_OPTIONS} />
-                      <EditField label="Tipo de Execução" value={tipoExecucao} onChange={onTipoExecucaoChange} disabled={isFieldDisabled} options={TIPO_EXECUCAO_OPTIONS} />
+                      <EditField label="Tipo de Execução" value={tipo_execucao} onChange={onTipoExecucaoChange} disabled={isFieldDisabled} options={TIPO_EXECUCAO_OPTIONS} />
                       <EditField label="Origem" value={origem} onChange={onOrigemChange} disabled={isFieldDisabled} options={ORIGEM_OPTIONS} />
-                      <EditField label="Data Agendada" value={dataAgendada} onChange={onDataAgendadaChange} disabled={isFieldDisabled} inputType="date" />
-                      <EditField label="Janela de Execução Início" value={janelaExecucaoInicio} onChange={onJanelaExecucaoInicioChange} disabled={isFieldDisabled} inputType="time" />
-                      <EditField label="Janela de Execução Fim" value={janelaExecucaoFim} onChange={onJanelaExecucaoFimChange} disabled={isFieldDisabled} inputType="time" />
+                      <EditField label="Data Agendada" value={data_agendada} onChange={onDataAgendadaChange} disabled={isFieldDisabled} inputType="date" />
+                      <EditField label="Janela de Execução Início" value={janela_execucao_inicio} onChange={onJanelaExecucaoInicioChange} disabled={isFieldDisabled} inputType="time" />
+                      <EditField label="Janela de Execução Fim" value={janela_execucao_fim} onChange={onJanelaExecucaoFimChange} disabled={isFieldDisabled} inputType="time" />
                     </>
                   )}
                 </div>
@@ -451,12 +447,12 @@ export default function GMUDDrawer(props: GMUDDrawerProps) {
                   {isView ? (
                     <>
                       <ViewField label="Solicitante" value={solicitante} />
-                      <ViewField label="Responsável de Execução" value={responsavelExecucao} />
+                      <ViewField label="Responsável de Execução" value={responsavel_execucao} />
                     </>
                   ) : (
                     <>
                       <EditField label="Solicitante" value={solicitante} onChange={onSolicitanteChange} disabled={isFieldDisabled} />
-                      <EditField label="Responsável de Execução" value={responsavelExecucao} onChange={onResponsavelExecucaoChange} disabled={isFieldDisabled} />
+                      <EditField label="Responsável de Execução" value={responsavel_execucao} onChange={onResponsavelExecucaoChange} disabled={isFieldDisabled} />
                     </>
                   )}
                 </div>
@@ -466,18 +462,18 @@ export default function GMUDDrawer(props: GMUDDrawerProps) {
                 {renderSectionTitle('Rollback')}
                 <div className="grid grid-cols-1 gap-4">
                   {isView ? (
-                    <ViewField label="Plano de Rollback" value={planoRollback} multiline />
+                    <ViewField label="Plano de Rollback" value={plano_rollback} multiline />
                   ) : (
-                    <EditField label="Plano de Rollback" value={planoRollback} onChange={onPlanoRollbackChange} disabled={isFieldDisabled} textarea />
+                    <EditField label="Plano de Rollback" value={plano_rollback} onChange={onPlanoRollbackChange} disabled={isFieldDisabled} textarea />
                   )}
                 </div>
               </section>
 
               <section>
                 {renderSectionTitle('Checklist')}
-                {checklistItems.length > 0 ? (
+                {itens_checklist.length > 0 ? (
                   <div className="space-y-3 max-h-60 overflow-y-auto">
-                    {checklistItems.map((item) => (
+                    {itens_checklist.map((item) => (
                       <div key={item.id} className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
                         <div className="font-medium text-gray-900 mb-2">{item.descricao}</div>
                         {item.status && (
@@ -500,13 +496,13 @@ export default function GMUDDrawer(props: GMUDDrawerProps) {
 
               <section>
                 {renderSectionTitle('Histórico')}
-                {historyItems.length > 0 ? (
+                {historico.length > 0 ? (
                   <div className="space-y-3 max-h-80 overflow-y-auto">
-                    {historyItems.map((item) => (
+                    {historico.map((item) => (
                       <div key={item.id} className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
                         <div className="text-xs text-gray-500 mb-1">{formatTimestamp(item.timestamp)}</div>
-                        <div className="font-medium text-gray-900 mb-1">{formatValue(item.tipoEvento)}</div>
-                        {item.usuarioNome && <div className="text-sm text-gray-900 mb-2">{item.usuarioNome}</div>}
+                        <div className="font-medium text-gray-900 mb-1">{formatValue(item.tipo_evento)}</div>
+                        {item.usuario_nome && <div className="text-sm text-gray-900 mb-2">{item.usuario_nome}</div>}
                         {item.observacao && <p className="text-sm text-gray-600 whitespace-pre-wrap">{item.observacao}</p>}
                       </div>
                     ))}

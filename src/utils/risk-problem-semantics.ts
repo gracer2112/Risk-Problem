@@ -1,5 +1,3 @@
-// src/utils/risk-problem-semantics.ts
-
 export type SemanticTone = "neutral" | "info" | "success" | "warning" | "danger";
 
 export interface SemanticInfo {
@@ -21,20 +19,17 @@ export interface DeadlineSemanticInfo {
   isEmpty: boolean;
 }
 
-function normalizeToNumber(value: number | string | null | undefined): number | null {
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
-
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : null;
-  }
-
-  const normalized = Number(value);
-  return Number.isFinite(normalized) ? normalized : null;
+export function normalizeToNumber(value: number | string | null | undefined): number | null {
+  // Normaliza o valor para número, tratando strings e valores nulos
+  if (value == null) return null;
+  if (typeof value === 'number') return value;
+  const str = String(value).trim();
+  const num = parseFloat(str);
+  return isNaN(num) ? null : num;
 }
 
-function createEmptySemantic(rawValue: number | string | null | undefined): SemanticInfo {
+export function createEmptySemantic(rawValue: number | string | null | undefined): SemanticInfo {
+  // Cria SemanticInfo para valores vazios ou não informados
   return {
     rawValue,
     normalizedValue: null,
@@ -42,18 +37,19 @@ function createEmptySemantic(rawValue: number | string | null | undefined): Sema
     shortLabel: "N/I",
     tone: "neutral",
     rank: null,
-    isEmpty: true,
+    isEmpty: true
   };
 }
 
-function createScaleSemantic(
+export function createScaleSemantic(
   rawValue: number | string | null | undefined,
   normalizedValue: number,
   label: string,
   shortLabel: string,
   tone: SemanticTone,
-  rank: number,
+  rank: number
 ): SemanticInfo {
+  // Cria SemanticInfo completo para escalas semânticas
   return {
     rawValue,
     normalizedValue,
@@ -61,152 +57,156 @@ function createScaleSemantic(
     shortLabel,
     tone,
     rank,
-    isEmpty: false,
+    isEmpty: false
   };
 }
 
-/**
- * Escala ordinal genérica 1–5
- * Usar para: probabilidade, impacto, urgência
- */
-export function getFivePointScaleSemantic(
-  value: number | string | null | undefined,
-): SemanticInfo {
-  const normalizedValue = normalizeToNumber(value);
-
-  if (normalizedValue === null || normalizedValue < 1 || normalizedValue > 5) {
+export function getFivePointScaleSemantic(value: number | string | null | undefined): SemanticInfo {
+  // Obtém semântica para escala de 1 a 5 pontos
+  const norm = normalizeToNumber(value);
+  if (norm === null) {
     return createEmptySemantic(value);
   }
-
-  switch (normalizedValue) {
+  const scale = Math.max(1, Math.min(5, Math.round(norm)));
+  let label: string;
+  let shortLabel: string;
+  let tone: SemanticTone;
+  switch (scale) {
     case 1:
-      return createScaleSemantic(value, normalizedValue, "Muito baixo", "M. baixo", "neutral", 1);
+      label = "Muito baixo";
+      shortLabel = "M. baixo";
+      tone = "neutral";
+      break;
     case 2:
-      return createScaleSemantic(value, normalizedValue, "Baixo", "Baixo", "info", 2);
+      label = "Baixo";
+      shortLabel = "Baixo";
+      tone = "info";
+      break;
     case 3:
-      return createScaleSemantic(value, normalizedValue, "Médio", "Médio", "warning", 3);
+      label = "Médio";
+      shortLabel = "Médio";
+      tone = "warning";
+      break;
     case 4:
-      return createScaleSemantic(value, normalizedValue, "Alto", "Alto", "warning", 4);
+      label = "Alto";
+      shortLabel = "Alto";
+      tone = "warning";
+      break;
     case 5:
-      return createScaleSemantic(value, normalizedValue, "Muito alto", "M. alto", "danger", 5);
+      label = "Muito alto";
+      shortLabel = "M. alto";
+      tone = "danger";
+      break;
     default:
       return createEmptySemantic(value);
   }
+  return createScaleSemantic(value, scale, label, shortLabel, tone, scale);
 }
 
-/**
- * Escala específica para efetividade do controle
- * Aqui a polaridade é diferente: efetividade alta é algo positivo
- */
-export function getControlEffectivenessSemantic(
-  value: number | string | null | undefined,
-): SemanticInfo {
-  const normalizedValue = normalizeToNumber(value);
-
-  if (normalizedValue === null || normalizedValue < 1 || normalizedValue > 5) {
+export function getControlEffectivenessSemantic(value: number | string | null | undefined): SemanticInfo {
+  // Obtém semântica para efetividade de controle (polaridade positiva: alta = bom)
+  const norm = normalizeToNumber(value);
+  if (norm === null) {
     return createEmptySemantic(value);
   }
-
-  switch (normalizedValue) {
+  const scale = Math.max(1, Math.min(5, Math.round(norm)));
+  let label: string;
+  let shortLabel: string;
+  let tone: SemanticTone;
+  switch (scale) {
     case 1:
-      return createScaleSemantic(
-        value,
-        normalizedValue,
-        "Muito baixa efetividade",
-        "M. baixa",
-        "danger",
-        1,
-      );
+      label = "Muito baixa efetividade";
+      shortLabel = "M. baixa";
+      tone = "danger";
+      break;
     case 2:
-      return createScaleSemantic(
-        value,
-        normalizedValue,
-        "Baixa efetividade",
-        "Baixa",
-        "warning",
-        2,
-      );
+      label = "Baixa efetividade";
+      shortLabel = "Baixa";
+      tone = "warning";
+      break;
     case 3:
-      return createScaleSemantic(
-        value,
-        normalizedValue,
-        "Efetividade moderada",
-        "Moderada",
-        "info",
-        3,
-      );
+      label = "Efetividade moderada";
+      shortLabel = "Moderada";
+      tone = "info";
+      break;
     case 4:
-      return createScaleSemantic(
-        value,
-        normalizedValue,
-        "Alta efetividade",
-        "Alta",
-        "success",
-        4,
-      );
+      label = "Alta efetividade";
+      shortLabel = "Alta";
+      tone = "success";
+      break;
     case 5:
-      return createScaleSemantic(
-        value,
-        normalizedValue,
-        "Muito alta efetividade",
-        "M. alta",
-        "success",
-        5,
-      );
+      label = "Muito alta efetividade";
+      shortLabel = "M. alta";
+      tone = "success";
+      break;
     default:
       return createEmptySemantic(value);
   }
+  return createScaleSemantic(value, scale, label, shortLabel, tone, scale);
 }
 
-/**
- * Score composto conservador da Sprint 6
- * Manter aderência à lógica já consolidada na tela:
- * &lt; 30 = Baixa
- * 30–59 = Média
- * >= 60 = Crítica
- */
-export function getCompositeScoreSemantic(
-  value: number | string | null | undefined,
-): SemanticInfo {
-  const normalizedValue = normalizeToNumber(value);
-
-  if (normalizedValue === null || normalizedValue < 0) {
+export function getCompositeScoreSemantic(value: number | string | null | undefined): SemanticInfo {
+  // Obtém semântica para pontuação composta (< 6 Baixa, >=6 <12 Média, >=12 Crítica)
+  const norm = normalizeToNumber(value);
+  if (norm === null) {
     return createEmptySemantic(value);
   }
-
-  if (normalizedValue >= 60) {
-    return createScaleSemantic(value, normalizedValue, "Crítica", "Crítica", "danger", 3);
+  let label: string;
+  let shortLabel: string;
+  let tone: SemanticTone;
+  let rank: number;
+  if (norm <= 6) {
+    label = "Baixa";
+    shortLabel = "Baixa";
+    tone = "neutral";
+    rank = 1;
+  } else if (norm <= 12) {
+    label = "Média";
+    shortLabel = "Média";
+    tone = "info";
+    rank = 2;
+  } else if (norm <= 18) {
+    label = "Alta";
+    shortLabel = "Alta";
+    tone = "warning";
+    rank = 3;
+  } else {
+    label = "Crítica";
+    shortLabel = "Crítica";
+    tone = "danger";
+    rank = 4;
   }
-
-  if (normalizedValue >= 30) {
-    return createScaleSemantic(value, normalizedValue, "Média", "Média", "warning", 2);
-  }
-
-  return createScaleSemantic(value, normalizedValue, "Baixa", "Baixa", "neutral", 1);
+  return createScaleSemantic(value, norm, label, shortLabel, tone, rank);
 }
 
-/**
- * Prazo para leitura operacional
- * - Sem prazo definido
- * - No prazo
- * - Atrasado
- * Item encerrado não deve destacar atraso
- */
-export function getDeadlineSemantic(
-  targetDate: string | null | undefined,
-  isClosed: boolean,
-): DeadlineSemanticInfo {
-  if (!targetDate) {
+function parseDateLike(value: string | null | undefined): Date | null {
+  // Função auxiliar interna: faz parse de data, priorizando formato YYYY-MM-DD local
+  if (!value) return null;
+  // Formato YYYY-MM-DD
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    const [, year, month, day] = match;
+    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    return isNaN(date.getTime()) ? null : date;
+  }
+  // Outros formatos
+  const date = new Date(value);
+  return isNaN(date.getTime()) ? null : date;
+}
+
+export function getDeadlineSemantic(targetDate: string | null | undefined, isClosed: boolean): DeadlineSemanticInfo {
+  // Obtém semântica para prazo/finalidade
+  const parsed = parseDateLike(targetDate);
+  if (!targetDate || !parsed) {
     return {
       targetDate,
       label: "Sem prazo definido",
       shortLabel: "Sem prazo",
       tone: "neutral",
       isLate: false,
-      isEmpty: true,
+      isEmpty: true
     };
   }
-
   if (isClosed) {
     return {
       targetDate,
@@ -214,44 +214,32 @@ export function getDeadlineSemantic(
       shortLabel: "Encerrado",
       tone: "neutral",
       isLate: false,
-      isEmpty: false,
+      isEmpty: false
     };
   }
-
-  const parsedDate = new Date(targetDate);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return {
-      targetDate,
-      label: "Prazo inválido",
-      shortLabel: "Inválido",
-      tone: "neutral",
-      isLate: false,
-      isEmpty: true,
-    };
-  }
-
+  // Normaliza para comparação de datas (meia-noite local)
+  const targetDay = new Date(parsed);
+  targetDay.setHours(0, 0, 0, 0);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  parsedDate.setHours(0, 0, 0, 0);
-
-  if (parsedDate < today) {
+  const isLate = targetDay < today;
+  if (isLate) {
     return {
       targetDate,
       label: "Atrasado",
       shortLabel: "Atrasado",
       tone: "danger",
       isLate: true,
-      isEmpty: false,
+      isEmpty: false
+    };
+  } else {
+    return {
+      targetDate,
+      label: "No prazo",
+      shortLabel: "No prazo",
+      tone: "success",
+      isLate: false,
+      isEmpty: false
     };
   }
-
-  return {
-    targetDate,
-    label: "No prazo",
-    shortLabel: "No prazo",
-    tone: "success",
-    isLate: false,
-    isEmpty: false,
-  };
 }
