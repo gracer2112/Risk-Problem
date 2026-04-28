@@ -6,10 +6,8 @@ import {
   CriarGMUDRequestDTO as PayloadCriarGMUD,
   AtualizarGMUDRequestDTO as PayloadAtualizarGMUD,
   GMUDKPIs,
-  FiltrosGMUD,
   PayloadTransicaoStatusGMUD,
   PayloadRegistrarRollbackGMUD,
-  StatusGMUD
 } from '@/types/gmud';
 import type { GMUDListResponse, GMUDHistoryResponse } from '@/services/gmud.mapper';
 import { mapApiGMUDToEntity, mapApiGMUDListResponse, mapApiGMUDKPIs, mapPayloadCriarGMUDToApi, mapPayloadAtualizarGMUDToApi, mapPayloadTransicaoStatusGMUDToApi, mapPayloadRegistrarRollbackGMUDToApi } from '@/services/gmud.mapper';

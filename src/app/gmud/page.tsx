@@ -7,387 +7,319 @@ import GMUDHeader from '@/components/gmud/GMUDHeader';
 import GMUDKpis from '@/components/gmud/GMUDKpis';
 import GMUDFilters from '@/components/gmud/GMUDFilters';
 import GMUDTable, { type GMUDTableItem } from '@/components/gmud/GMUDTable';
+import { StatusGMUD, PrioridadeGMUD, ImpactoGMUD, AmbienteGMUD, TipoExecucaoGMUD, OrigemGMUD, ChecklistItemGMUD, HistoricoItemGMUD } from '@/types/gmud';
 import GMUDDrawer from '@/components/gmud/GMUDDrawer';
 
-type GMUDPageChecklistItem = {
-  id: string;
-  descricao: string;
-  status?: string;
-  observacao?: string | null;
-};
-
-type GMUDPageHistoryItem = {
-  id: string;
-  timestamp?: string | null;
-  tipoEvento?: string | null;
-  usuarioNome?: string | null;
-  observacao?: string | null;
-};
-
-type GMUDPageItem = {
+export interface GMUDPageItem {
   id: string;
   titulo: string;
-  description: string;
-  status: 'rascunho' | 'em_revisao' | 'aprovado' | 'agendado' | 'em_execucao' | 'concluido' | 'rollback';
-  prioridade: 'baixa' | 'media' | 'alta' | 'critica';
-  impacto: 'baixo' | 'medio' | 'alto' | 'critico';
-  ambiente: 'desenvolvimento' | 'homologacao' | 'producao';
-  tipoExecucao: 'manual' | 'automatica';
-  origem: 'interna' | 'cliente' | 'fornecedor';
-  dataAgendada: string | null;
-  janelaExecucaoInicio: string | null;
-  janelaExecucaoFim: string | null;
-  solicitante: string | null;
-  responsavelExecucao: string | null;
-  planoRollback: string | null;
-  updatedAt: string | null;
-  projectName: string;
-  openProjectProjectId: string | null;
-  checklistItems: GMUDPageChecklistItem[];
-  historyItems: GMUDPageHistoryItem[];
-};
+  descricao: string;
+  status: StatusGMUD;
+  prioridade: PrioridadeGMUD;
+  impacto: ImpactoGMUD;
+  ambiente: AmbienteGMUD;
+  tipo_execucao: TipoExecucaoGMUD;
+  origem: OrigemGMUD;
+  openproject_project_id?: string;
+  data_agendada?: string;
+  janela_execucao_inicio?: string;
+  janela_execucao_fim?: string;
+  solicitante?: string;
+  responsavel_execucao?: string;
+  plano_rollback?: string;
+  itens_checklist: ChecklistItemGMUD[];
+  historico: HistoricoItemGMUD[];
+}
 
 const MOCK_ITEMS: GMUDPageItem[] = [
   {
-    id: 'gmud-001',
-    titulo: 'Deploy da versão 2.4.0',
-    description: 'Publicação da versão 2.4.0 com ajustes de performance e correções menores.',
-    status: 'agendado',
-    prioridade: 'alta',
-    impacto: 'alto',
-    ambiente: 'producao',
-    tipoExecucao: 'automatica',
-    origem: 'interna',
-    dataAgendada: '2026-04-28',
-    janelaExecucaoInicio: '22:00',
-    janelaExecucaoFim: '23:30',
-    solicitante: 'Time de Produto',
-    responsavelExecucao: 'Carlos Mendes',
-    planoRollback: 'Rollback via pipeline para a tag v2.3.9.',
-    updatedAt: '2026-04-23 10:20',
-    projectName: 'Portal Corporativo',
-    openProjectProjectId: 'OP-1042',
-    checklistItems: [
-      { id: 'chk-1', descricao: 'Backup validado', status: 'concluido', observacao: null },
-      { id: 'chk-2', descricao: 'Smoke test planejado', status: 'pendente', observacao: 'Executar após deploy' },
-    ],
-    historyItems: [
-      { id: 'hist-1', timestamp: '2026-04-22 15:00', tipoEvento: 'Criação', usuarioNome: 'Erica', observacao: 'GMUD criada para release semanal' },
-      { id: 'hist-2', timestamp: '2026-04-23 09:30', tipoEvento: 'Agendamento', usuarioNome: 'Carlos Mendes', observacao: 'Janela confirmada para 22h' },
-    ],
+    id: '1',
+    titulo: 'Atualização de Segurança Crítica',
+    descricao: 'Aplicar patches de segurança no servidor de produção.',
+    status: StatusGMUD.EM_EXECUCAO,
+    prioridade: PrioridadeGMUD.CRITICA,
+    impacto: ImpactoGMUD.CRITICO,
+    ambiente: AmbienteGMUD.PRODUCAO,
+    tipo_execucao: TipoExecucaoGMUD.MANUAL,
+    origem: OrigemGMUD.INTERNA,
+    openproject_project_id: 'OP-12345',
+    data_agendada: '2024-10-20',
+    janela_execucao_inicio: '2024-10-20T22:00:00Z',
+    janela_execucao_fim: '2024-10-21T02:00:00Z',
+    solicitante: 'João Silva',
+    responsavel_execucao: 'Maria Oliveira',
+    plano_rollback: 'Reverter snapshot do servidor.',
+    itens_checklist: [
+      {
+        id: 'chk1',
+        descricao: 'Verificar backup pré-execução',
+        status: 'CONCLUIDO' as ChecklistItemGMUD['status'],
+        observacao: 'Backup realizado com sucesso.'
+      },
+      {
+        id: 'chk2',
+        descricao: 'Testar em homologação',
+        status: 'PENDENTE' as ChecklistItemGMUD['status'],
+        observacao: ''
+      },
+      {
+        id: 'chk3',
+        descricao: 'Comunicar downtime',
+        status: 'EM_ANDAMENTO' as ChecklistItemGMUD['status'],
+        observacao: 'E-mail enviado aos stakeholders.'
+      }
+    ] as ChecklistItemGMUD[],
+    historico: [
+      {
+        id: 'hist1',
+        timestamp: '2024-10-18T09:00:00Z',
+        tipo_evento: 'CRIACAO' as HistoricoItemGMUD['tipo_evento'],
+        usuario_id: 'user1',
+        usuario_nome: 'João Silva',
+        observacao: 'GMUD criado.'
+      },
+      {
+        id: 'hist2',
+        timestamp: '2024-10-19T14:30:00Z',
+        tipo_evento: 'APROVACAO' as HistoricoItemGMUD['tipo_evento'],
+        usuario_id: 'user2',
+        usuario_nome: 'Gerente de TI',
+        observacao: 'Aprovado para execução.'
+      }
+    ]
   },
   {
-    id: 'gmud-002',
-    titulo: 'Correção emergencial de autenticação',
-    description: 'Ajuste no fluxo de autenticação após falha intermitente em produção.',
-    status: 'em_revisao',
-    prioridade: 'critica',
-    impacto: 'critico',
-    ambiente: 'producao',
-    tipoExecucao: 'manual',
-    origem: 'cliente',
-    dataAgendada: null,
-    janelaExecucaoInicio: null,
-    janelaExecucaoFim: null,
-    solicitante: 'Operação',
-    responsavelExecucao: 'Marina Lopes',
-    planoRollback: 'Reaplicar configuração anterior do provedor de autenticação.',
-    updatedAt: '2026-04-23 11:05',
-    projectName: 'Portal Corporativo',
-    openProjectProjectId: 'OP-1042',
-    checklistItems: [
-      { id: 'chk-3', descricao: 'Análise de causa concluída', status: 'concluido', observacao: null },
-      { id: 'chk-4', descricao: 'Parecer de segurança', status: 'em_revisao', observacao: 'Aguardando validação final' },
-    ],
-    historyItems: [
-      { id: 'hist-3', timestamp: '2026-04-23 08:10', tipoEvento: 'Criação', usuarioNome: 'Erica', observacao: 'Aberta por incidente reportado' },
-    ],
-  },
-  {
-    id: 'gmud-003',
-    titulo: 'Migração de configuração do cache',
-    description: 'Troca de parâmetros do cache distribuído para reduzir latência.',
-    status: 'em_execucao',
-    prioridade: 'media',
-    impacto: 'medio',
-    ambiente: 'homologacao',
-    tipoExecucao: 'manual',
-    origem: 'fornecedor',
-    dataAgendada: '2026-04-23',
-    janelaExecucaoInicio: '14:00',
-    janelaExecucaoFim: '15:00',
-    solicitante: 'Infraestrutura',
-    responsavelExecucao: 'Bruno Reis',
-    planoRollback: 'Restaurar parâmetros anteriores do cluster.',
-    updatedAt: '2026-04-23 14:12',
-    projectName: 'Plataforma de Atendimento',
-    openProjectProjectId: 'OP-2088',
-    checklistItems: [
-      { id: 'chk-5', descricao: 'Alteração iniciada', status: 'em_execucao', observacao: 'Monitorando métricas' },
-    ],
-    historyItems: [
-      { id: 'hist-4', timestamp: '2026-04-23 14:00', tipoEvento: 'Execução iniciada', usuarioNome: 'Bruno Reis', observacao: 'Janela iniciada conforme planejado' },
-    ],
-  },
-  {
-    id: 'gmud-004',
-    titulo: 'Rollback de configuração de fila',
-    description: 'Retorno para configuração anterior após aumento de erros de processamento.',
-    status: 'rollback',
-    prioridade: 'alta',
-    impacto: 'alto',
-    ambiente: 'producao',
-    tipoExecucao: 'manual',
-    origem: 'interna',
-    dataAgendada: '2026-04-21',
-    janelaExecucaoInicio: '19:00',
-    janelaExecucaoFim: '19:40',
-    solicitante: 'Operação',
-    responsavelExecucao: 'Paulo Neri',
-    planoRollback: 'Já executado — configuração anterior restaurada.',
-    updatedAt: '2026-04-21 19:45',
-    projectName: 'Plataforma de Atendimento',
-    openProjectProjectId: 'OP-2088',
-    checklistItems: [],
-    historyItems: [
-      { id: 'hist-5', timestamp: '2026-04-21 19:42', tipoEvento: 'Rollback executado', usuarioNome: 'Paulo Neri', observacao: 'Estabilidade restabelecida' },
-    ],
-  },
+    id: '2',
+    titulo: 'Deploy de Nova Feature',
+    descricao: 'Lançar nova funcionalidade de login no app mobile.',
+    status: StatusGMUD.CONCLUIDO,
+    prioridade: PrioridadeGMUD.ALTA,
+    impacto: ImpactoGMUD.ALTO,
+    ambiente: AmbienteGMUD.HOMOLOGACAO,
+    tipo_execucao: TipoExecucaoGMUD.AUTOMATICA,
+    origem: OrigemGMUD.CLIENTE,
+    openproject_project_id: 'OP-67890',
+    data_agendada: '2024-10-15',
+    janela_execucao_inicio: '2024-10-15T18:00:00Z',
+    janela_execucao_fim: '2024-10-15T20:00:00Z',
+    solicitante: 'Equipe de Produto',
+    responsavel_execucao: 'DevOps Team',
+    plano_rollback: 'Rollback via Git tag anterior.',
+    itens_checklist: [
+      {
+        id: 'chk4',
+        descricao: 'Executar script de deploy',
+        status: 'CONCLUIDO' as ChecklistItemGMUD['status'],
+        observacao: 'Deploy automático bem-sucedido.'
+      },
+      {
+        id: 'chk5',
+        descricao: 'Validar logs pós-deploy',
+        status: 'CONCLUIDO' as ChecklistItemGMUD['status'],
+        observacao: 'Sem erros nos logs.'
+      }
+    ] as ChecklistItemGMUD[],
+    historico: [
+      {
+        id: 'hist3',
+        timestamp: '2024-10-14T10:00:00Z',
+        tipo_evento: 'AGENDAMENTO' as HistoricoItemGMUD['tipo_evento'],
+        usuario_id: 'user3',
+        usuario_nome: 'Product Owner',
+        observacao: 'Agendado para homologação.'
+      },
+      {
+        id: 'hist4',
+        timestamp: '2024-10-15T21:00:00Z',
+        tipo_evento: 'CONCLUSAO' as HistoricoItemGMUD['tipo_evento'],
+        usuario_id: 'user4',
+        usuario_nome: 'DevOps Lead',
+        observacao: 'Execução concluída sem incidentes.'
+      }
+    ]
+  }
 ];
 
-function createEmptyItem(): GMUDPageItem {
+const createEmptyItem = (): GMUDPageItem => ({
+  id: '',
+  titulo: '',
+  descricao: '',
+  status: StatusGMUD.RASCUNHO,
+  prioridade: PrioridadeGMUD.BAIXA,
+  impacto: ImpactoGMUD.BAIXO,
+  ambiente: AmbienteGMUD.DESENVOLVIMENTO,
+  tipo_execucao: TipoExecucaoGMUD.MANUAL,
+  origem: OrigemGMUD.INTERNA,
+  openproject_project_id: '',
+  data_agendada: '',
+  janela_execucao_inicio: '',
+  janela_execucao_fim: '',
+  solicitante: '',
+  responsavel_execucao: '',
+  plano_rollback: '',
+  itens_checklist: [],
+  historico: []
+});
+
+/*function createEmptyItem(): GMUDPageItem {
   return {
-    id: 'new-gmud',
+    id: '',
     titulo: '',
-    description: '',
-    status: 'rascunho',
-    prioridade: 'baixa',
-    impacto: 'baixo',
-    ambiente: 'desenvolvimento',
-    tipoExecucao: 'manual',
-    origem: 'interna',
-    dataAgendada: null,
-    janelaExecucaoInicio: null,
-    janelaExecucaoFim: null,
-    solicitante: null,
-    responsavelExecucao: null,
-    planoRollback: null,
-    updatedAt: null,
-    projectName: 'Portal Corporativo',
-    openProjectProjectId: 'OP-1042',
-    checklistItems: [],
-    historyItems: [],
+    descricao: '',
+    status: StatusGMUD.RASCUNHO,
+    prioridade: PrioridadeGMUD.BAIXA,
+    impacto: ImpactoGMUD.BAIXO,
+    ambiente: AmbienteGMUD.HOMOLOGACAO,
+    tipo_execucao: TipoExecucaoGMUD.MANUAL,
+    origem: OrigemGMUD.INTERNA,
+    openproject_project_id: '',
+    data_agendada: '',
+    janela_execucao_inicio: '',
+    janela_execucao_fim: '',
+    solicitante: '',
+    responsavel_execucao: '',
+    plano_rollback: '',
+    itens_checklist: [] as ChecklistItemGMUD[],
+    historico: [] as HistoricoItemGMUD[],
   };
-}
+}*/
 
 export default function GMUDPage() {
-  const [statusFilter, setStatusFilter] = useState('');
-  const [prioridadeFilter, setPrioridadeFilter] = useState('');
-  const [impactoFilter, setImpactoFilter] = useState('');
-  const [ambienteFilter, setAmbienteFilter] = useState('');
-  const [buscaFilter, setBuscaFilter] = useState('');
-
+  const [items, setItems] = useState<GMUDPageItem[]>(MOCK_ITEMS);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerMode, setDrawerMode] = useState<'create' | 'edit' | 'view'>('create');
-  const [drawerItem, setDrawerItem] = useState<GMUDPageItem>(createEmptyItem());
+  const [drawerData, setDrawerData] = useState<GMUDPageItem>(createEmptyItem());
+  const [filters, setFilters] = useState({
+    status: '' as StatusGMUD | '',
+    prioridade: '' as PrioridadeGMUD | '',
+  });
 
-  const filteredItems = useMemo(() => {
-    return MOCK_ITEMS.filter((item) => {
-      const matchStatus = !statusFilter || item.status === statusFilter;
-      const matchPrioridade = !prioridadeFilter || item.prioridade === prioridadeFilter;
-      const matchImpacto = !impactoFilter || item.impacto === impactoFilter;
-      const matchAmbiente = !ambienteFilter || item.ambiente === ambienteFilter;
-      const termo = buscaFilter.trim().toLowerCase();
-      const matchBusca =
-        !termo ||
-        item.titulo.toLowerCase().includes(termo) ||
-        item.description.toLowerCase().includes(termo) ||
-        (item.responsavelExecucao ?? '').toLowerCase().includes(termo);
-
-      return matchStatus && matchPrioridade && matchImpacto && matchAmbiente && matchBusca;
-    });
-  }, [statusFilter, prioridadeFilter, impactoFilter, ambienteFilter, buscaFilter]);
-
-  const tableItems = useMemo<GMUDTableItem[]>(() => {
-    return filteredItems.map((item) => ({
-      id: item.id,
-      titulo: item.titulo,
-      status: item.status,
-      prioridade: item.prioridade,
-      impacto: item.impacto,
-      ambiente: item.ambiente,
-      dataAgendada: item.dataAgendada,
-      responsavelExecucao: item.responsavelExecucao,
-      updatedAt: item.updatedAt,
-    }));
-  }, [filteredItems]);
-
-  const kpis = useMemo(() => {
-    return {
-      total: filteredItems.length,
-      emRevisao: filteredItems.filter((item) => item.status === 'em_revisao').length,
-      agendadas: filteredItems.filter((item) => item.status === 'agendado').length,
-      emExecucao: filteredItems.filter((item) => item.status === 'em_execucao').length,
-      concluidas: filteredItems.filter((item) => item.status === 'concluido').length,
-      rollbacks: filteredItems.filter((item) => item.status === 'rollback').length,
-    };
-  }, [filteredItems]);
-
-  const handleOpenCreate = useCallback(() => {
-    setDrawerItem(createEmptyItem());
-    setDrawerMode('create');
-    setDrawerOpen(true);
-  }, []);
-
-  const handleOpenView = useCallback((itemId: string) => {
-    const found = MOCK_ITEMS.find((item) => item.id === itemId);
-    if (!found) return;
-    setDrawerItem(found);
-    setDrawerMode('view');
-    setDrawerOpen(true);
-  }, []);
-
-  const handleOpenEdit = useCallback((itemId: string) => {
-    const found = MOCK_ITEMS.find((item) => item.id === itemId);
-    if (!found) return;
-    setDrawerItem({ ...found });
-    setDrawerMode('edit');
-    setDrawerOpen(true);
-  }, []);
-
-  const handleCloseDrawer = useCallback(() => {
-    setDrawerOpen(false);
-  }, []);
-
-  const handleClearFilters = useCallback(() => {
-    setStatusFilter('');
-    setPrioridadeFilter('');
-    setImpactoFilter('');
-    setAmbienteFilter('');
-    setBuscaFilter('');
-  }, []);
-
-  const handleSubmit = useCallback(() => {
-    console.info('Submit GMUD:', drawerItem);
-    setDrawerOpen(false);
-  }, [drawerItem]);
-
-  const handleDeleteFromTable = useCallback((itemId: string) => {
-    console.info('Delete da tabela:', itemId);
-  }, []);
-
-  const handleDeleteFromDrawer = useCallback(() => {
-    console.info('Delete do drawer:', drawerItem.id);
-    setDrawerOpen(false);
-  }, [drawerItem]);
-
-  const updateDrawerField = useCallback(
-    (field: keyof GMUDPageItem, value: string) => {
-      setDrawerItem((prev) => ({ ...prev, [field]: value }));
-    },
-    [],
+  const filteredItems = items.filter(
+    (item) =>
+      (!filters.status || item.status === filters.status) &&
+      (!filters.prioridade || item.prioridade === filters.prioridade)
   );
 
+  const openDrawer = (item?: GMUDPageItem) => {
+    setDrawerData(item ?? createEmptyItem());
+    setDrawerOpen(true);
+  };
+
+  const handleSave = useCallback(() => {
+    console.log('Salvando:', drawerData);
+    // Lógica de save: update or create
+    setDrawerOpen(false);
+  }, [drawerData]);
+
+  const updateDrawerField = <K extends keyof GMUDPageItem>(
+    field: K,
+    value: GMUDPageItem[K]
+  ) => {
+    setDrawerData((prev) => ({ ...prev, [field]: value }));
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <GMUDHeader
-        title="GMUD"
-        />
+    <div className="container mx-auto p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Gerenciamento de GMUD</h1>
+        <button
+          onClick={() => openDrawer()}
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        >
+          Novo GMUD
+        </button>
+      </div>
 
-        <div className="mt-6">
-          <GMUDKpis
-            total={kpis.total}
-            emRevisao={kpis.emRevisao}
-            agendadas={kpis.agendadas}
-            emExecucao={kpis.emExecucao}
-            concluidas={kpis.concluidas}
-            rollbacks={kpis.rollbacks}
-            loading={false}
-          />
+      {/* Filtros simples */}
+      <div className="grid grid-cols-2 gap-4 mb-6 max-w-md">
+        <div>
+          <label>Status</label>
+          <select
+            value={filters.status}
+            onChange={(e) => setFilters({ ...filters, status: e.target.value as StatusGMUD } as any)}
+            className="w-full p-2 border rounded"
+          >
+            <option value="">Todos</option>
+            {Object.values(StatusGMUD).map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
         </div>
-
-        <div className="mt-6">
-          <GMUDFilters
-            status={statusFilter}
-            prioridade={prioridadeFilter}
-            impacto={impactoFilter}
-            ambiente={ambienteFilter}
-            busca={buscaFilter}
-            loading={false}
-            disabled={false}
-            onStatusChange={setStatusFilter}
-            onPrioridadeChange={setPrioridadeFilter}
-            onImpactoChange={setImpactoFilter}
-            onAmbienteChange={setAmbienteFilter}
-            onBuscaChange={setBuscaFilter}
-            onApplyFilters={() => {}}
-            onClearFilters={handleClearFilters}
-          />
-        </div>
-
-        <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          Estrutura funcional inicial da GMUD, ainda sem hook, api e mapper reais.
-        </div>
-
-        <div className="mt-6">
-          <GMUDTable
-            items={tableItems}
-            loading={false}
-            emptyMessage="Nenhuma GMUD encontrada para os filtros atuais."
-            onView={handleOpenView}
-            onEdit={handleOpenEdit}
-            onDelete={handleDeleteFromTable}
-          />
+        <div>
+          <label>Prioridade</label>
+          <select
+            value={filters.prioridade}
+            onChange={(e) => setFilters({ ...filters, prioridade: e.target.value as PrioridadeGMUD } as any)}
+            className="w-full p-2 border rounded"
+          >
+            <option value="">Todos</option>
+            {Object.values(PrioridadeGMUD).map((pri) => (
+              <option key={pri} value={pri}>
+                {pri}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
-      <GMUDDrawer
-        open={drawerOpen}
-        mode={drawerMode}
-        loading={false}
-        saving={false}
-        deleting={false}
-        title={drawerItem.titulo}
-        description={drawerItem.description}
-        projectName={drawerItem.projectName}
-        openProjectProjectId={drawerItem.openProjectProjectId}
-        status={drawerItem.status}
-        prioridade={drawerItem.prioridade}
-        impacto={drawerItem.impacto}
-        ambiente={drawerItem.ambiente}
-        tipoExecucao={drawerItem.tipoExecucao}
-        origem={drawerItem.origem}
-        dataAgendada={drawerItem.dataAgendada}
-        janelaExecucaoInicio={drawerItem.janelaExecucaoInicio}
-        janelaExecucaoFim={drawerItem.janelaExecucaoFim}
-        solicitante={drawerItem.solicitante}
-        responsavelExecucao={drawerItem.responsavelExecucao}
-        planoRollback={drawerItem.planoRollback}
-        checklistItems={drawerItem.checklistItems}
-        historyItems={drawerItem.historyItems}
-        error={null}
-        submitLabel={drawerMode === 'create' ? 'Criar GMUD' : 'Salvar Alterações'}
-        deleteLabel="Excluir GMUD"
-        closeLabel="Fechar"
-        onClose={handleCloseDrawer}
-        onSubmit={handleSubmit}
-        onDelete={handleDeleteFromDrawer}
-        onTitleChange={(value) => updateDrawerField('titulo', value)}
-        onDescriptionChange={(value) => updateDrawerField('description', value)}
-        onStatusChange={(value) => updateDrawerField('status', value)}
-        onPrioridadeChange={(value) => updateDrawerField('prioridade', value)}
-        onImpactoChange={(value) => updateDrawerField('impacto', value)}
-        onAmbienteChange={(value) => updateDrawerField('ambiente', value)}
-        onTipoExecucaoChange={(value) => updateDrawerField('tipoExecucao', value)}
-        onOrigemChange={(value) => updateDrawerField('origem', value)}
-        onDataAgendadaChange={(value) => updateDrawerField('dataAgendada', value)}
-        onJanelaExecucaoInicioChange={(value) => updateDrawerField('janelaExecucaoInicio', value)}
-        onJanelaExecucaoFimChange={(value) => updateDrawerField('janelaExecucaoFim', value)}
-        onSolicitanteChange={(value) => updateDrawerField('solicitante', value)}
-        onResponsavelExecucaoChange={(value) => updateDrawerField('responsavelExecucao', value)}
-        onPlanoRollbackChange={(value) => updateDrawerField('planoRollback', value)}
-      />
+      {/* Tabela */}
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-white border border-gray-200">
+          <thead>
+            <tr>
+              <th className="px-4 py-2 border">ID</th>
+              <th className="px-4 py-2 border">Título</th>
+              <th className="px-4 py-2 border">Status</th>
+              <th className="px-4 py-2 border">Prioridade</th>
+              <th className="px-4 py-2 border">Impacto</th>
+              <th className="px-4 py-2 border">Ambiente</th>
+              <th className="px-4 py-2 border">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredItems.map((item) => (
+              <tr key={item.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => openDrawer(item)}>
+                <td className="px-4 py-2 border">{item.id}</td>
+                <td className="px-4 py-2 border">{item.titulo}</td>
+                <td className="px-4 py-2 border">{item.status}</td>
+                <td className="px-4 py-2 border">{item.prioridade}</td>
+                <td className="px-4 py-2 border">{item.impacto}</td>
+                <td className="px-4 py-2 border">{item.ambiente}</td>
+                <td className="px-4 py-2 border">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openDrawer(item);
+                    }}
+                    className="bg-green-500 text-white px-2 py-1 rounded text-sm"
+                  >
+                    Editar
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+        <GMUDDrawer
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          titulo={drawerData.titulo}
+          descricao={drawerData.descricao}
+          openproject_project_id={drawerData.openproject_project_id || ''}
+          tipo_execucao={drawerData.tipo_execucao}
+          data_agendada={drawerData.data_agendada || ''}
+          janela_execucao_inicio={drawerData.janela_execucao_inicio || ''}
+          janela_execucao_fim={drawerData.janela_execucao_fim || ''}
+          solicitante={drawerData.solicitante || ''}
+          responsavel_execucao={drawerData.responsavel_execucao || ''}
+          plano_rollback={drawerData.plano_rollback || ''}
+          itens_checklist={drawerData.itens_checklist}
+          historico={drawerData.historico}
+          onSubmit={handleSave}
+        />
     </div>
   );
 }

@@ -8,7 +8,6 @@ import type {
   CriarGMUDRequestDTO as PayloadCriarGMUD,
   AtualizarGMUDRequestDTO as PayloadAtualizarGMUD,
   GMUDKPIs,
-  FiltrosGMUD,
   PayloadTransicaoStatusGMUD,
   PayloadRegistrarRollbackGMUD
 } from '@/types/gmud';

@@ -1,61 +1,72 @@
 // src/components/gmud/GMUDFilters.tsx
 
+import { 
+  ChecklistItemGMUD, 
+  HistoricoItemGMUD, 
+  StatusGMUD, 
+  PrioridadeGMUD, 
+  ImpactoGMUD, 
+  AmbienteGMUD,
+  OrigemGMUD,
+  TipoExecucaoGMUD
+} from "@/types/gmud";
+
 export type GMUDFiltersProps = {
-  status?: string;
-  prioridade?: string;
-  impacto?: string;
-  ambiente?: string;
+  status?: StatusGMUD;
+  prioridade?: PrioridadeGMUD;
+  impacto?: ImpactoGMUD;
+  ambiente?: AmbienteGMUD;
   busca?: string;
   loading?: boolean;
   disabled?: boolean;
-  onStatusChange?: (value: string) => void;
-  onPrioridadeChange?: (value: string) => void;
-  onImpactoChange?: (value: string) => void;
-  onAmbienteChange?: (value: string) => void;
+  onStatusChange?: (value: StatusGMUD | '') => void;
+  onPrioridadeChange?: (value: PrioridadeGMUD|'') => void;
+  onImpactoChange?: (value: ImpactoGMUD|'') => void;
+  onAmbienteChange?: (value: AmbienteGMUD|'') => void;
   onBuscaChange?: (value: string) => void;
   onApplyFilters?: () => void;
   onClearFilters?: () => void;
 };
 
-type Option = {
-  value: string;
+type Option<T extends string = string> = {
+  value: T;
   label: string;
 };
 
-const statusOptions: Option[] = [
+const statusOptions: Option<StatusGMUD | ''>[] = [
   { value: '', label: 'Todos' },
-  { value: 'rascunho', label: 'Rascunho' },
-  { value: 'em_revisao', label: 'Em Revisão' },
-  { value: 'aprovado', label: 'Aprovado' },
-  { value: 'rejeitado', label: 'Rejeitado' },
-  { value: 'agendado', label: 'Agendado' },
-  { value: 'em_execucao', label: 'Em Execução' },
-  { value: 'concluido', label: 'Concluído' },
-  { value: 'cancelado', label: 'Cancelado' },
-  { value: 'rollback', label: 'Rollback' },
+  { value: StatusGMUD.RASCUNHO, label: 'Rascunho' },
+  { value: StatusGMUD.EM_REVISAO, label: 'Em Revisão' },
+  { value: StatusGMUD.APROVADO, label: 'Aprovado' },
+  { value: StatusGMUD.REJEITADO, label: 'Rejeitado' },
+  { value: StatusGMUD.AGENDADO, label: 'Agendado' },
+  { value: StatusGMUD.EM_EXECUCAO, label: 'Em Execução' },
+  { value: StatusGMUD.CONCLUIDO, label: 'Concluído' },
+  { value: StatusGMUD.CANCELADO, label: 'Cancelado' },
+  { value: StatusGMUD.ROLLBACK, label: 'Rollback' },
 ];
 
-const prioridadeOptions: Option[] = [
+const prioridadeOptions: Option<PrioridadeGMUD | ''>[] = [
   { value: '', label: 'Todos' },
-  { value: 'baixa', label: 'Baixa' },
-  { value: 'media', label: 'Média' },
-  { value: 'alta', label: 'Alta' },
-  { value: 'critica', label: 'Crítica' },
+  { value: PrioridadeGMUD.BAIXA, label: 'Baixa' },
+  { value: PrioridadeGMUD.MEDIA, label: 'Média' },
+  { value: PrioridadeGMUD.ALTA, label: 'Alta' },
+  { value: PrioridadeGMUD.CRITICA, label: 'Crítica' },
 ];
 
-const impactoOptions: Option[] = [
+const impactoOptions: Option<ImpactoGMUD | ''>[] = [
   { value: '', label: 'Todos' },
-  { value: 'baixo', label: 'Baixo' },
-  { value: 'medio', label: 'Médio' },
-  { value: 'alto', label: 'Alto' },
-  { value: 'critico', label: 'Crítico' },
+  { value: ImpactoGMUD.BAIXO, label: 'Baixo' },
+  { value: ImpactoGMUD.MEDIO, label: 'Médio' },
+  { value: ImpactoGMUD.ALTO, label: 'Alto' },
+  { value: ImpactoGMUD.CRITICO, label: 'Crítico' },
 ];
 
-const ambienteOptions: Option[] = [
+const ambienteOptions: Option<AmbienteGMUD | ''>[] = [
   { value: '', label: 'Todos' },
-  { value: 'desenvolvimento', label: 'Desenvolvimento' },
-  { value: 'homologacao', label: 'Homologação' },
-  { value: 'producao', label: 'Produção' },
+  { value: AmbienteGMUD.DESENVOLVIMENTO, label: 'Desenvolvimento' },
+  { value: AmbienteGMUD.HOMOLOGACAO, label: 'Homologação' },
+  { value: AmbienteGMUD.PRODUCAO, label: 'Produção' },
 ];
 
 export default function GMUDFilters(props: GMUDFiltersProps) {
@@ -90,8 +101,8 @@ export default function GMUDFilters(props: GMUDFiltersProps) {
         <div>
           <label className={labelClass}>Status</label>
           <select
-            value={status || ''}
-            onChange={(e) => onStatusChange?.(e.target.value)}
+            value={status ?? ''}
+            onChange={(e) => onStatusChange?.(e.target.value as StatusGMUD | '')}
             disabled={isDisabled}
             className={commonInputClass}
           >
@@ -107,8 +118,8 @@ export default function GMUDFilters(props: GMUDFiltersProps) {
         <div>
           <label className={labelClass}>Prioridade</label>
           <select
-            value={prioridade || ''}
-            onChange={(e) => onPrioridadeChange?.(e.target.value)}
+            value={prioridade ?? ''}
+            onChange={(e) => onPrioridadeChange?.(e.target.value as PrioridadeGMUD | '')}
             disabled={isDisabled}
             className={commonInputClass}
           >
@@ -125,7 +136,7 @@ export default function GMUDFilters(props: GMUDFiltersProps) {
           <label className={labelClass}>Impacto</label>
           <select
             value={impacto || ''}
-            onChange={(e) => onImpactoChange?.(e.target.value)}
+            onChange={(e) => onImpactoChange?.(e.target.value as ImpactoGMUD | '')}
             disabled={isDisabled}
             className={commonInputClass}
           >
@@ -142,7 +153,7 @@ export default function GMUDFilters(props: GMUDFiltersProps) {
           <label className={labelClass}>Ambiente</label>
           <select
             value={ambiente || ''}
-            onChange={(e) => onAmbienteChange?.(e.target.value)}
+            onChange={(e) => onAmbienteChange?.(e.target.value as AmbienteGMUD | '')}
             disabled={isDisabled}
             className={commonInputClass}
           >

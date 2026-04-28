@@ -60,3 +60,4 @@ __pycache__/
 .env
 .DS_Store # macOS
 Thumbs.db # Windows
+src/fontes_projeto.txt

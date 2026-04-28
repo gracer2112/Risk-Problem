@@ -71,7 +71,6 @@ export const MOCK_RISK_PROBLEM_ITEMS: RiskProblemEntity[] = [
     status_operacional: StatusProblemaEnum.EM_TRATAMENTO,
     origem: OrigemItemEnum.RISCO_CONVERTIDO,
     data_entrada: "2026-03-18T08:00:00Z",
-
     descricao:
       "A API de pagamento está retornando erros 500 em 15% das transações. Impacto direto na conversão.",
     causa_raiz:
@@ -83,28 +82,55 @@ export const MOCK_RISK_PROBLEM_ITEMS: RiskProblemEntity[] = [
     agente_solucao: "João Silva",
     coordenador_agente: "Carlos",
     data_alvo_solucao: "2026-03-22",
-
-    probabilidade_inerente: null,
-    impacto_inerente: null,
-    nivel_risco_inerente: null,
-    eficacia_controle: null,
-    probabilidade_residual: null,
-    impacto_residual: null,
-    nivel_risco_residual: null,
-
+    probabilidade_inerente: 4,
+    impacto_inerente: 5,
+    nivel_risco_inerente: 20,
+    eficacia_controle: 2,
+    probabilidade_residual: 2,
+    impacto_residual: 4,
+    nivel_risco_residual: 8,
     impacto_realizado: 4,
     urgencia_solucao: 5,
     prioridade_problema: 20,
-
     convertido_em_problema_em: "2026-03-19T14:00:00Z",
     data_transicao_problema: "2026-03-19T14:00:00Z",
     motivo_transicao: "Risco materializado em falha real na operação.",
     controle_aplicado: "sim",
     controle_efetivo: "nao",
-
     data_encerramento: null,
     observacao_encerramento: null,
-    historico_eventos: [],
+    historico_eventos: [
+      {
+        id: "item-002-hist-001",
+        item_id: "item-002",
+        tipo_evento: "item_criado",
+        data_evento: "2026-03-18T08:00:00Z",
+        autor: "Sistema",
+        observacao: "Item criado inicialmente como risco."
+      },
+      {
+        id: "item-002-hist-002",
+        item_id: "item-002",
+        tipo_evento: "status_alterado",
+        data_evento: "2026-03-18T10:00:00Z",
+        autor: "Sistema",
+        campo: "status_operacional",
+        valor_anterior: "identificado",
+        valor_novo: "em_analise",
+        observacao: "Status inicial evoluído para análise do risco."
+      },
+      {
+        id: "item-002-hist-003",
+        item_id: "item-002",
+        tipo_evento: "convertido_em_problema",
+        data_evento: "2026-03-19T14:00:00Z",
+        autor: "Sistema",
+        campo: "natureza_atual",
+        valor_anterior: "risco",
+        valor_novo: "problema",
+        observacao: "Risco convertido em problema após materialização operacional."
+      }
+    ]
   },
 
   {
