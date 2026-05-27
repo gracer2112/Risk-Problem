@@ -9,15 +9,16 @@ export type OpenProjectProjectId = string;
 export type DataISO = string;
 
 export enum StatusGMUD {
-  RASCUNHO = 'rascunho',
-  EM_REVISAO = 'em_revisao',
-  APROVADO = 'aprovado',
-  REJEITADO = 'rejeitado',
-  AGENDADO = 'agendado',
-  EM_EXECUCAO = 'em_execucao',
-  CONCLUIDO = 'concluido',
-  CANCELADO = 'cancelado',
-  ROLLBACK = 'rollback'
+  RASCUNHO = 'RASCUNHO',
+  EM_REVISAO = 'EM REVISAO',
+  APROVADO = 'APROVADO',
+  REJEITADO = 'REJEITADO',
+  AGENDADO = 'AGENDADO',
+  EM_EXECUCAO = 'EM EXECUCAO',
+  CONCLUIDO = 'CONCLUIDO',
+  CANCELADO = 'CANCELADO',
+  ROLLBACK = 'ROLLBACK',
+  PLANEJADO = 'PLANEJADO'
 }
 
 export enum PrioridadeGMUD {
@@ -58,10 +59,10 @@ export enum StatusChecklistGMUD {
 }
 
 export interface CriarGMUDRequestDTO {
-  project_id: ProjetoId;
   openproject_project_id?: OpenProjectProjectId | null;
   titulo: string;
   descricao: string;
+  status: StatusGMUD;
   prioridade: PrioridadeGMUD;
   impacto: ImpactoGMUD;
   ambiente: AmbienteGMUD;
@@ -186,6 +187,7 @@ export interface PayloadRegistrarRollbackGMUD {
 export type TransicoesPermitidasGMUD = Record<StatusGMUD, readonly StatusGMUD[]>;
 
 export const TRANSICOES_PERMITIDAS_GMUD: TransicoesPermitidasGMUD = {
+  [StatusGMUD.PLANEJADO]: [StatusGMUD.EM_REVISAO, StatusGMUD.CANCELADO],
   [StatusGMUD.RASCUNHO]: [StatusGMUD.EM_REVISAO, StatusGMUD.CANCELADO],
   [StatusGMUD.EM_REVISAO]: [StatusGMUD.APROVADO, StatusGMUD.REJEITADO, StatusGMUD.RASCUNHO],
   [StatusGMUD.APROVADO]: [StatusGMUD.AGENDADO, StatusGMUD.CANCELADO],
@@ -196,3 +198,26 @@ export const TRANSICOES_PERMITIDAS_GMUD: TransicoesPermitidasGMUD = {
   [StatusGMUD.CANCELADO]: [],
   [StatusGMUD.ROLLBACK]: [StatusGMUD.CONCLUIDO, StatusGMUD.CANCELADO]
 };
+
+export enum GMUDEventoEnum {
+  GMUD_CRIADA = "GMUD_CRIADA",
+  GMUD_ATUALIZADA = "GMUD_ATUALIZADA",
+  STATUS_ALTERADO = "STATUS_ALTERADO",
+  PRIORIDADE_ALTERADA = "PRIORIDADE_ALTERADA",
+  CHECKLIST_ADICIONADO = "CHECKLIST_ADICIONADO",
+  CHECKLIST_EDITADO = "CHECKLIST_EDITADO",
+  CHECKLIST_REMOVIDO = "CHECKLIST_REMOVIDO",
+  ROLLBACK_EXECUTADO = "ROLLBACK_EXECUTADO",
+  CAMPO_EDITADO = "CAMPO_EDITADO"
+}
+
+export interface GMUDEvent {
+  id: string;
+  gmud_id: string;
+  tipo_evento: GMUDEventoEnum;
+  descricao: string;
+  detalhes?: any;
+  usuario: string;
+  data_evento: string;
+}
+

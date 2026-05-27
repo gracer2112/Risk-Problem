@@ -10,7 +10,8 @@ import {
   GMUDKPIs,
   PayloadTransicaoStatusGMUD,
   PayloadRegistrarRollbackGMUD,
-  StatusChecklistGMUD
+  StatusChecklistGMUD,
+  GMUDEvent 
 } from '@/types/gmud';
 
 import type {
@@ -45,6 +46,24 @@ export interface GMUDHistoryResponse {
   items?: unknown[];
   data?: unknown[];
   total?: number;
+}
+
+export interface TimelineItem {
+  id: string;
+  title: string;
+  timestamp: string;
+  details?: any;
+  type: string;
+}
+
+export function mapGMUDEventToTimelineItem(e: GMUDEvent): TimelineItem {
+  return {
+    id: e.id,
+    title: e.descricao,
+    timestamp: e.data_evento,
+    details: e.detalhes ?? null,
+    type: e.tipo_evento
+  };
 }
 
 const DEFAULT_GMUD_TITULO = 'Mudança sem título';
@@ -123,9 +142,9 @@ function getDateString(record: Record<string, unknown>, ...keys: string[]): stri
 }
 
 function parseEnumValue<T extends Record<string, string>>(enumObject: T, rawValue: unknown, fallback: T[keyof T]): T[keyof T] {
-  const normalized = normalizeEnumLikeValue(rawValue);
-  const values = Object.values(enumObject) as string[];
-  if (values.includes(normalized)) return normalized as T[keyof T];
+  if (typeof rawValue === 'string' && Object.values(enumObject).includes(rawValue)) {
+    return rawValue as T[keyof T];
+  }
   return fallback;
 }
 
@@ -246,21 +265,21 @@ export function mapApiGMUDKPIs(api: unknown): GMUDKPIs {
 
 export function mapPayloadCriarGMUDToApi(payload: PayloadCriarGMUD): Record<string, unknown> {
   return stripUndefined({
-    project_id: payload.project_id,
     openproject_project_id: payload.openproject_project_id ?? null,
     titulo: payload.titulo,
     descricao: payload.descricao,
+    status: StatusGMUD.RASCUNHO,
+    data_agendada: payload.data_agendada ?? new Date().toISOString(), 
     prioridade: payload.prioridade,
     impacto: payload.impacto,
     ambiente: payload.ambiente,
     tipo_execucao: payload.tipo_execucao,
     origem: payload.origem,
-    data_agendada: payload.data_agendada,
-    janela_execucao_inicio: payload.janela_execucao_inicio,
-    janela_execucao_fim: payload.janela_execucao_fim,
-    solicitante: payload.solicitante,
-    responsavel_execucao: payload.responsavel_execucao,
-    plano_rollback: payload.plano_rollback,
+    janela_execucao_inicio: payload.janela_execucao_inicio ?? new Date().toISOString(), 
+    janela_execucao_fim: payload.janela_execucao_fim ?? new Date().toISOString(), 
+    solicitante: payload.solicitante ?? "Não informado",  
+    responsavel_execucao: payload.responsavel_execucao ?? "Não definido",
+    plano_rollback: payload.plano_rollback ?? "Não definido",
     itens_checklist: payload.itens_checklist?.map(mapPayloadChecklistItemToApi),
   });
 }
@@ -270,6 +289,7 @@ export function mapPayloadAtualizarGMUDToApi(payload: PayloadAtualizarGMUD): Rec
     openproject_project_id: payload.openproject_project_id,
     titulo: payload.titulo,
     descricao: payload.descricao,
+    status: payload.status,
     prioridade: payload.prioridade,
     impacto: payload.impacto,
     ambiente: payload.ambiente,

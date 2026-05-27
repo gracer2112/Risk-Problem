@@ -1,555 +1,708 @@
 // src/components/gmud/GMUDDrawer.tsx
 
-import { 
-  ChecklistItemGMUD, 
-  HistoricoItemGMUD, 
-  StatusGMUD, 
-  PrioridadeGMUD, 
-  ImpactoGMUD, 
+import React from 'react';
+import { useState } from 'react';
+import DrawerSection from '@/components/DrawerSection';
+import {
+  StatusGMUD,
+  PrioridadeGMUD,
+  ImpactoGMUD,
   AmbienteGMUD,
+  TipoExecucaoGMUD,
   OrigemGMUD,
-  TipoExecucaoGMUD
-} from "@/types/gmud";
+  StatusChecklistGMUD,
+} from '@/types/gmud';
+import type {
+  GMUDResponseDTO,
+  ChecklistItemGMUD,
+  HistoricoItemGMUD,
+  PayloadChecklistItemGMUD,
+} from '@/types/gmud';
+import {
+  getStatusGMUDLabel,
+  getPrioridadeGMUDLabel,
+  getImpactoGMUDLabel,
+  getAmbienteGMUDLabel,
+  getTipoExecucaoGMUDLabel,
+  getOrigemGMUDLabel,
+  getChecklistResumoGMUD,
+  getStatusChecklistGMUDLabel,
+} from '@/utils/gmud-domain';
+import { GMUDBadge } from './GMUDBadge';
+import GMUDChecklist from './GMUDChecklist';
+import GMUDHistorico from './GMUDHistorico';
+import GMUDRollback from './GMUDRollback';
 
-export type GMUDDrawerMode = 'create' | 'edit' | 'view';
-
-export type GMUDDrawerProps = {
-  open?: boolean;
-  mode?: GMUDDrawerMode;
+type Props = {
+  open: boolean;
+  openproject_project_id: string | null;
+  gmud?: GMUDResponseDTO;
+  isLoading?: boolean;
   loading?: boolean;
   saving?: boolean;
   deleting?: boolean;
+  mode?: 'create' | 'edit' | 'view';
   titulo?: string;
   descricao?: string;
-  //projectName?: string;
-  openproject_project_id?: string | null;
   status?: StatusGMUD;
   prioridade?: PrioridadeGMUD;
   impacto?: ImpactoGMUD;
   ambiente?: AmbienteGMUD;
   tipo_execucao?: TipoExecucaoGMUD;
   origem?: OrigemGMUD;
-  data_agendada?: string | null;
-  janela_execucao_inicio?: string | null;
-  janela_execucao_fim?: string | null;
-  solicitante?: string | null;
-  responsavel_execucao?: string | null;
-  plano_rollback?: string | null;
+  data_agendada?: string;
+  janela_execucao_inicio?: string;
+  janela_execucao_fim?: string;
+  solicitante?: string;
+  responsavel_execucao?: string;
+  plano_rollback?: string;
   itens_checklist?: ChecklistItemGMUD[];
   historico?: HistoricoItemGMUD[];
-  error?: string | null;
+  error?: string;
   submitLabel?: string;
   deleteLabel?: string;
   closeLabel?: string;
-  onClose?: () => void;
-  onSubmit?: () => void;
+  onClose: () => void;
+  onSubmit: () => void;
   onDelete?: () => void;
-  onTitleChange?: (value: string) => void;
-  onDescriptionChange?: (value: string) => void;
-  onStatusChange?: (value: StatusGMUD) => void;
-  onPrioridadeChange?: (value: PrioridadeGMUD) => void;
-  onImpactoChange?: (value: ImpactoGMUD) => void;
-  onAmbienteChange?: (value: AmbienteGMUD) => void;
-  onTipoExecucaoChange?: (value: TipoExecucaoGMUD) => void;
-  onOrigemChange?: (value: OrigemGMUD) => void;
-  onDataAgendadaChange?: (value: string) => void;
-  onJanelaExecucaoInicioChange?: (value: string) => void;
-  onJanelaExecucaoFimChange?: (value: string) => void;
-  onSolicitanteChange?: (value: string) => void;
-  onResponsavelExecucaoChange?: (value: string) => void;
-  onPlanoRollbackChange?: (value: string) => void;
+  onChangeTitulo?: (value: string) => void;
+  onChangeDescricao?: (value: string) => void;
+  onChangeSolicitante?: (value: string) => void;
+  onChangeResponsavelExecucao?: (value: string) => void;
+  onChangeDataAgendada?: (value: string) => void;
+  onChangeJanelaExecucaoInicio?: (value: string) => void;
+  onChangeJanelaExecucaoFim?: (value: string) => void;
+  onChangePlanoRollback?: (value: string) => void;
+  onChangeStatus?: (value: StatusGMUD) => void; 
+  onChangePrioridade?: (value: PrioridadeGMUD) => void;
+  onChangeImpacto?: (value: ImpactoGMUD) => void;
+  onChangeAmbiente?: (value: AmbienteGMUD) => void;
+  onChangeTipoExecucao?: (value: TipoExecucaoGMUD) => void;
+  onChangeOrigem?: (value: OrigemGMUD) => void;
+  onAddChecklistItem?: (gmudId: string, descricao: string) => void;
+  onUpdateChecklistItem?: (gmudId: string, itemId: string, payload: PayloadChecklistItemGMUD) => void;
+  onDeleteChecklistItem?: (gmudId: string, itemId: string) => void;
+  onChecklistUpdated?: () => void;
+  onChecklistEditStart?: (itemId: string | null) => void;
+  editingChecklistItemId?: string | null;
 };
 
-type Option <T extends string = string> = {
-  value: string;
-  label: string;
-};
 
-const STATUS_OPTIONS: Option<StatusGMUD>[] = [
-  { value: 'rascunho', label: 'Rascunho' },
-  { value: 'em_revisao', label: 'Em Revisão' },
-  { value: 'aprovado', label: 'Aprovado' },
-  { value: 'rejeitado', label: 'Rejeitado' },
-  { value: 'agendado', label: 'Agendado' },
-  { value: 'em_execucao', label: 'Em Execução' },
-  { value: 'concluido', label: 'Concluído' },
-  { value: 'cancelado', label: 'Cancelado' },
-  { value: 'rollback', label: 'Rollback' },
-];
+const GMUDDrawer: React.FC<Props> = ({
+  open,
+  openproject_project_id,
+  gmud,
+  isLoading = false,
+  loading = false,
+  saving = false,
+  deleting = false,
+  mode: modeProp,
+  titulo: propTitulo,
+  descricao: propDescricao,
+  status: propStatus,
+  prioridade: propPrioridade,
+  impacto: propImpacto,
+  ambiente: propAmbiente,
+  tipo_execucao: propTipoExecucao,
+  origem: propOrigem,
+  data_agendada: propDataAgendada,
+  janela_execucao_inicio: propJanelaInicio,
+  janela_execucao_fim: propJanelaFim,
+  solicitante: propSolicitante,
+  responsavel_execucao: propResponsavel,
+  plano_rollback: propPlanoRollback,
+  itens_checklist: propItensChecklist = [],
+  historico: propHistorico = [],
+  error,
+  submitLabel,
+  deleteLabel,
+  closeLabel,
+  onClose,
+  onSubmit,
+  onDelete,
+  onChangeTitulo,
+  onChangeDescricao,
+  onChangeSolicitante,
+  onChangeResponsavelExecucao,
+  onChangeDataAgendada,
+  onChangeJanelaExecucaoInicio,
+  onChangeJanelaExecucaoFim,
+  onChangePlanoRollback,
+  onChangeStatus,
+  onChangePrioridade,
+  onChangeImpacto,
+  onChangeAmbiente,
+  onChangeTipoExecucao,
+  onChangeOrigem,
+  onAddChecklistItem,
+  onUpdateChecklistItem,
+  onDeleteChecklistItem,
+  onChecklistUpdated,
+  onChecklistEditStart,
+  editingChecklistItemId,
+}) => {
 
-const PRIORIDADE_OPTIONS: Option<PrioridadeGMUD>[] = [
-  { value: 'baixa', label: 'Baixa' },
-  { value: 'media', label: 'Média' },
-  { value: 'alta', label: 'Alta' },
-  { value: 'critica', label: 'Crítica' },
-];
+  if (!open) return null;
 
-const IMPACTO_OPTIONS: Option<ImpactoGMUD>[] = [
-  { value: 'baixo', label: 'Baixo' },
-  { value: 'medio', label: 'Médio' },
-  { value: 'alto', label: 'Alto' },
-  { value: 'critico', label: 'Crítico' },
-];
+  const mode = modeProp ?? (gmud ? 'edit' : 'create');
 
-const AMBIENTE_OPTIONS: Option<AmbienteGMUD>[] = [
-  { value: 'desenvolvimento', label: 'Desenvolvimento' },
-  { value: 'homologacao', label: 'Homologação' },
-  { value: 'producao', label: 'Produção' },
-];
+  const [localStatus, setLocalStatus] = useState<StatusGMUD>(gmud?.status ?? propStatus ?? StatusGMUD.RASCUNHO);
+  const [localPrioridade, setLocalPrioridade] = useState<PrioridadeGMUD>(gmud?.prioridade ?? propPrioridade ?? PrioridadeGMUD.BAIXA);
+  const [localImpacto, setLocalImpacto] = useState<ImpactoGMUD>(gmud?.impacto ?? propImpacto ?? ImpactoGMUD.BAIXO);
+  const [localAmbiente, setLocalAmbiente] = useState<AmbienteGMUD>(gmud?.ambiente ?? propAmbiente ?? AmbienteGMUD.DESENVOLVIMENTO);
+  const [localTipoExecucao, setLocalTipoExecucao] = useState<TipoExecucaoGMUD>(gmud?.tipo_execucao ?? propTipoExecucao ?? TipoExecucaoGMUD.MANUAL);
+  const [localOrigem, setLocalOrigem] = useState<OrigemGMUD>(gmud?.origem ?? propOrigem ?? OrigemGMUD.INTERNA);
 
-const TIPO_EXECUCAO_OPTIONS: Option<TipoExecucaoGMUD>[] = [
-  { value: 'manual', label: 'Manual' },
-  { value: 'automatica', label: 'Automática' },
-];
+  const titulo = propTitulo ?? gmud?.titulo ?? '';
+  const descricao = propDescricao ?? gmud?.descricao ?? '';
+  const status = gmud?.status ?? propStatus;
+  const prioridade = gmud?.prioridade ?? propPrioridade;
+  const impacto = gmud?.impacto ?? propImpacto;
+  const ambiente = gmud?.ambiente ?? propAmbiente;
+  const tipo_execucao = gmud?.tipo_execucao ?? propTipoExecucao;
+  const origem = gmud?.origem ?? propOrigem;
+  const data_agendada = propDataAgendada ?? gmud?.data_agendada ?? "";
+  const janela_execucao_inicio = propJanelaInicio ?? gmud?.janela_execucao_inicio ?? "";
+  const janela_execucao_fim = propJanelaFim ?? gmud?.janela_execucao_fim ?? "";
+  const solicitante = propSolicitante ?? gmud?.solicitante ?? "";
+  const responsavel_execucao = propResponsavel ?? gmud?.responsavel_execucao ?? "";
+  const plano_rollback = propPlanoRollback ?? gmud?.plano_rollback ?? "";
+  
+  const itens_checklist: ChecklistItemGMUD[] = gmud?.itens_checklist ?? propItensChecklist;
+  const historico: HistoricoItemGMUD[] = gmud?.historico ?? propHistorico;
 
-const ORIGEM_OPTIONS: Option<OrigemGMUD>[] = [
-  { value: 'interna', label: 'Interna' },
-  { value: 'cliente', label: 'Cliente' },
-  { value: 'fornecedor', label: 'Fornecedor' },
-];
+  const effectiveStatus = gmud?.status ?? status;
+  const effectivePrioridade = gmud?.prioridade ?? prioridade;
+  const effectiveImpacto = gmud?.impacto ?? impacto;
+  const effectiveAmbiente = gmud?.ambiente ?? ambiente;
+  const effectiveTipoExecucao = gmud?.tipo_execucao ?? tipo_execucao;
+  const effectiveOrigem = gmud?.origem ?? origem;
 
-const LABEL_MAP = {
-  status: Object.fromEntries(STATUS_OPTIONS.map((item) => [item.value, item.label])),
-  prioridade: Object.fromEntries(PRIORIDADE_OPTIONS.map((item) => [item.value, item.label])),
-  impacto: Object.fromEntries(IMPACTO_OPTIONS.map((item) => [item.value, item.label])),
-  ambiente: Object.fromEntries(AMBIENTE_OPTIONS.map((item) => [item.value, item.label])),
-  tipoExecucao: Object.fromEntries(TIPO_EXECUCAO_OPTIONS.map((item) => [item.value, item.label])),
-  origem: Object.fromEntries(ORIGEM_OPTIONS.map((item) => [item.value, item.label])),
-} as const;
+  const safeStatus: StatusGMUD = effectiveStatus ?? StatusGMUD.RASCUNHO;
+  const safePrioridade: PrioridadeGMUD = effectivePrioridade ?? PrioridadeGMUD.BAIXA;
+  const safeImpacto: ImpactoGMUD = effectiveImpacto ?? ImpactoGMUD.BAIXO;
+  const safeAmbiente: AmbienteGMUD = effectiveAmbiente ?? AmbienteGMUD.DESENVOLVIMENTO;
+  const safeTipoExecucao: TipoExecucaoGMUD = effectiveTipoExecucao ?? TipoExecucaoGMUD.MANUAL;
+  const safeOrigem: OrigemGMUD = effectiveOrigem ?? OrigemGMUD.INTERNA;
 
-type LabelField = keyof typeof LABEL_MAP;
+  console.log("%c[DEBUG DRAWER] props recebidas", "background: #006; color: #fff; padding: 4px;", {
+    editingChecklistItemId,
+    itens_checklist_length: itens_checklist?.length,
+    gmud_id: gmud?.id
+  });
 
-const formatValue = (value?: string | null, field?: LabelField): string => {
-  if (!value) {
-    return '-';
+  const [newChecklistDescricao, setNewChecklistDescricao] = useState("");
+  const [editDescricao, setEditDescricao] = useState("");
+  const [editObservacao, setEditObservacao] = useState("");
+  const [editStatus, setEditStatus] = useState<StatusChecklistGMUD>(StatusChecklistGMUD.PENDENTE);
+
+  const drawerTitle = `${
+    mode === 'create' ? 'Novo GMUD' :
+    mode === 'view' ? 'Visualizar GMUD' :
+    'Editar GMUD'
+  }${titulo ? `: ${titulo}` : ''}`;
+
+  function normalizeDate(dateStr?: string | null) {
+    if (!dateStr) return "";
+    return dateStr.split("T")[0];
   }
 
-  if (field && LABEL_MAP[field][value as keyof (typeof LABEL_MAP)[typeof field]]) {
-    return LABEL_MAP[field][value as keyof (typeof LABEL_MAP)[typeof field]];
+  function normalizeDateTime(dateStr?: string | null) {
+    if (!dateStr) return "";
+    const [date, time] = dateStr.split("T");
+    const [h, m] = time.split(":");
+    return `${date}T${h}:${m}`;
   }
+  const formatDate = (dateStr?: string) => dateStr ? new Date(dateStr).toLocaleString('pt-BR') : 'N/A';
+  const formatDateOnly = (dateStr?: string) => dateStr ? new Date(dateStr).toLocaleDateString('pt-BR') : 'N/A';
+  const formatTime = (dateStr?: string) => dateStr ? new Date(dateStr).toLocaleTimeString('pt-BR') : 'N/A';
 
-  return value;
-};
+  const isSkeleton = isLoading || loading;
+  const checklistResumo = getChecklistResumoGMUD(itens_checklist);
 
-const formatTimestamp = (timestamp?: string | null): string => {
-  if (!timestamp) {
-    return '-';
-  }
-
-  const parsed = new Date(timestamp);
-
-  if (Number.isNaN(parsed.getTime())) {
-    return timestamp;
-  }
-
-  return parsed.toLocaleString('pt-BR');
-};
-
-const renderSectionTitle = (title: string) => (
-  <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
-    {title}
-  </h3>
-);
-
-function SkeletonField() {
+  React.useEffect(() => {
+    if (gmud) {
+      setLocalStatus(gmud.status ?? StatusGMUD.RASCUNHO);
+      setLocalPrioridade(gmud.prioridade ?? PrioridadeGMUD.BAIXA);
+      setLocalImpacto(gmud.impacto ?? ImpactoGMUD.BAIXO);
+      setLocalAmbiente(gmud.ambiente ?? AmbienteGMUD.DESENVOLVIMENTO);
+      setLocalTipoExecucao(gmud.tipo_execucao ?? TipoExecucaoGMUD.MANUAL);
+      setLocalOrigem(gmud.origem ?? OrigemGMUD.INTERNA);
+    }
+  }, [gmud]);
+  
   return (
-    <div className="space-y-1.5">
-      <div className="h-4 w-24 rounded bg-gray-200 animate-pulse" />
-      <div className="h-11 rounded-lg bg-gray-200 animate-pulse" />
-    </div>
-  );
-}
-
-function SkeletonSection({ fieldCount }: { fieldCount: number }) {
-  return (
-    <div className="space-y-4 pb-8">
-      <div className="h-6 w-44 rounded bg-gray-200 animate-pulse mb-4" />
-      <div className="grid grid-cols-1 gap-4">
-        {Array.from({ length: fieldCount }, (_, index) => (
-          <SkeletonField key={`sk-field-${fieldCount}-${index}`} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function SkeletonList({ titleWidth }: { titleWidth: string }) {
-  return (
-    <div className="space-y-4 pb-8">
-      <div className={`h-6 rounded bg-gray-200 animate-pulse mb-4 ${titleWidth}`} />
-      <div className="space-y-3">
-        {Array.from({ length: 3 }, (_, index) => (
-          <div key={`sk-list-${titleWidth}-${index}`} className="h-20 rounded-lg bg-gray-200 animate-pulse" />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ViewField({
-  label,
-  value,
-  field,
-  multiline = false,
-}: {
-  label: string;
-  value?: string | null;
-  field?: LabelField;
-  multiline?: boolean;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <label className="block text-sm font-medium text-gray-700 leading-4">{label}</label>
-      <div
-        className={[
-          'p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm min-h-[44px]',
-          multiline ? 'whitespace-pre-wrap' : 'flex items-center',
-        ].join(' ')}
-      >
-        {formatValue(value, field)}
-      </div>
-    </div>
-  );
-}
-
-
-function EditField<T extends string = string>({
-  label,
-  value,
-  onChange,
-  disabled,
-  options,
-  textarea = false,
-  inputType = 'text',
-}: {
-  label: string;
-  value?: T | null;
-  onChange?: (value: T) => void;
-  disabled: boolean;
-  options?: Option<T>[];
-  textarea?: boolean;
-  inputType?: 'text' | 'date' | 'time';
-}) {
-  return (
-    <div className="space-y-1.5">
-      <label className="block text-sm font-medium text-gray-700 leading-4">{label}</label>
-      {options ? (
-        <select
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-          value={value ?? ''}
-          onChange={(e) => onChange?.(e.target.value as T)}
-          disabled={disabled}
-        >
-          <option value="">Selecione uma opção</option>
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      ) : textarea ? (
-        <textarea
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm min-h-[96px] resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-          value={value ?? ''}
-          onChange={(e) => onChange?.(e.target.value as T)}
-          disabled={disabled}
-          rows={4}
-        />
-      ) : (
-        <input
-          type={inputType}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-          value={value ?? ''}
-          onChange={(e) => onChange?.(e.target.value as T)}
-          disabled={disabled}
-        />
-      )}
-    </div>
-  );
-}
-
-export default function GMUDDrawer(props: GMUDDrawerProps) {
-  const {
-    open = false,
-    mode = 'view',
-    loading = false,
-    saving = false,
-    deleting = false,
-    titulo,
-    descricao,
-    //projectName,
-    openproject_project_id,
-    status,
-    prioridade,
-    impacto,
-    ambiente,
-    tipo_execucao,
-    origem,
-    data_agendada,
-    janela_execucao_inicio,
-    janela_execucao_fim,
-    solicitante,
-    responsavel_execucao,
-    plano_rollback,
-    itens_checklist = [],
-    historico = [],
-    error,
-    submitLabel,
-    deleteLabel,
-    closeLabel,
-    onClose,
-    onSubmit,
-    onDelete,
-    onTitleChange,
-    onDescriptionChange,
-    onStatusChange,
-    onPrioridadeChange,
-    onImpactoChange,
-    onAmbienteChange,
-    onTipoExecucaoChange,
-    onOrigemChange,
-    onDataAgendadaChange,
-    onJanelaExecucaoInicioChange,
-    onJanelaExecucaoFimChange,
-    onSolicitanteChange,
-    onResponsavelExecucaoChange,
-    onPlanoRollbackChange,
-  } = props;
-
-  if (!open) {
-    return null;
-  }
-
-  const isView = mode === 'view';
-  const isActionDisabled = saving || deleting;
-  const isFieldDisabled = isView || saving || deleting;
-
-  const drawerHeading =
-    mode === 'create'
-      ? 'Nova GMUD'
-      : mode === 'edit'
-      ? 'Editar GMUD'
-      : 'Detalhes da GMUD';
-
-  return (
-    <>
-      <div className="fixed inset-0 bg-black/60 z-[59]" onClick={onClose} aria-hidden />
-      <div className="fixed right-0 top-0 h-screen w-full max-w-[640px] bg-white shadow-2xl z-[60] flex flex-col max-h-screen">
-        <div className="p-6 border-b border-gray-200 bg-white shrink-0">
-          <div className="flex items-start justify-between gap-4">
-            <h2 className="text-2xl font-bold text-gray-900 flex-1 pr-4">{drawerHeading}</h2>
-            <button
-              type="button"
-              className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={onClose}
-              disabled={isActionDisabled}
-            >
-              {closeLabel ?? 'Fechar'}
-            </button>
-          </div>
+    
+    <div
+      className="w-96 h-full bg-background shadow-2xl border-l border-border overflow-hidden flex flex-col max-h-screen"
+      onClick={(e) => e.stopPropagation()}
+  >
+        {/* Header */}
+        <div className="sticky top-0 bg-background border-b border-border p-6 flex justify-between items-center shrink-0">
+          <h2 className="text-xl font-bold text-foreground tracking-tight">{drawerTitle}</h2>
+          <button
+            onClick={onClose}
+            className="text-muted-foreground hover:bg-accent hover:text-foreground p-2 rounded-lg transition-colors"
+            aria-label="Fechar"
+          >
+            ×
+          </button>
         </div>
 
+        {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-800 font-medium">{error}</p>
+          {error && !isSkeleton && (
+            <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-md text-destructive text-sm">
+              {error}
             </div>
           )}
 
-          {loading ? (
-            <>
-              <SkeletonSection fieldCount={6} />
-              <SkeletonSection fieldCount={6} />
-              <SkeletonSection fieldCount={2} />
-              <SkeletonSection fieldCount={1} />
-              <SkeletonList titleWidth="w-28" />
-              <SkeletonList titleWidth="w-32" />
-            </>
+          {isSkeleton ? (
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <div className="h-5 bg-muted rounded w-48 animate-pulse" />
+                <div className="h-4 bg-muted rounded w-full animate-pulse" />
+                <div className="h-4 bg-muted rounded w-3/4 animate-pulse" />
+              </div>
+              <div className="space-y-3">
+                <div className="h-5 bg-muted rounded w-32 animate-pulse" />
+                {[1,2,3,4,5,6].map((i) => (
+                  <div key={i} className="grid grid-cols-2 gap-4">
+                    <div className="h-4 bg-muted rounded w-full animate-pulse" />
+                    <div className="h-4 bg-muted rounded w-3/4 animate-pulse" />
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-3">
+                <div className="h-5 bg-muted rounded w-32 animate-pulse" />
+                <div className="h-32 bg-muted rounded animate-pulse" />
+              </div>
+              <div className="space-y-3">
+                <div className="h-5 bg-muted rounded w-32 animate-pulse" />
+                {[1,2,3].map((i) => (
+                  <div key={i} className="h-20 bg-muted rounded animate-pulse" />
+                ))}
+              </div>
+              <div className="space-y-3">
+                <div className="h-5 bg-muted rounded w-32 animate-pulse" />
+                <div className="h-24 bg-muted rounded animate-pulse overflow-hidden" />
+              </div>
+            </div>
           ) : (
             <>
-              <section>
-                {renderSectionTitle('Dados principais')}
-                <div className="grid grid-cols-1 gap-4">
-                  {isView ? (
-                    <>
-                      <ViewField label="Título" value={titulo} />
-                      <ViewField label="Descrição" value={descricao} multiline />
-                    </>
-                  ) : (
-                    <>
-                      <EditField label="Título" value={titulo} onChange={onTitleChange} disabled={isFieldDisabled} />
-                      <EditField label="Descrição" value={descricao} onChange={onDescriptionChange} disabled={isFieldDisabled} textarea />
-                    </>
-                  )}
-
-                  {/* {projectName && (
-                    <div className="space-y-1.5">
-                      <label className="block text-sm font-medium text-gray-700 leading-4">Projeto</label>
-                      <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-sm text-indigo-950">
-                        {projectName}
-                      </div>
-                    </div>
-                  )} */}
-
-                  {openproject_project_id && (
-                    <div className="space-y-1.5">
-                      <label className="block text-sm font-medium text-gray-700 leading-4">OpenProject</label>
-                      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-950">
-                        {openproject_project_id}
-                      </div>
+              <DrawerSection title="Identificação">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
+                  {gmud?.project_id && (
+                    <div>
+                      <span className="font-medium text-muted-foreground">Project ID:</span>
+                      <p className="mt-1 font-mono text-foreground bg-muted/50 px-2 py-1 rounded text-xs">
+                        {gmud.project_id}
+                      </p>
                     </div>
                   )}
+                  <div>
+                    <span className="font-medium text-muted-foreground">OpenProject ID:</span>
+                    <p className="mt-1 font-mono text-foreground bg-muted/50 px-2 py-1 rounded text-xs">
+                      {openproject_project_id || 'N/A'}
+                    </p>
+                  </div>
+                  <div className="lg:col-span-2">
+                    <span className="font-medium text-muted-foreground">Título:</span>
+                    {mode === "create" || mode === "edit" ? (
+                      <input
+                        type="text"
+                        className="mt-1 w-full px-3 py-2 border rounded-md bg-white text-foreground"
+                        value={titulo}
+                        onChange={(e) => onChangeTitulo?.(e.target.value)}
+                        placeholder="Digite o título da GMUD"
+                      />
+                    ) : (
+                      <p className="mt-1 text-foreground font-medium">{titulo}</p>
+                    )}
+                  </div>
+                <div className="lg:col-span-2">
+                  <span className="font-medium text-muted-foreground">Descrição:</span>
 
-                  {isView ? (
-                    <>
-                      <ViewField label="Status" value={status} field="status" />
-                      <ViewField label="Prioridade" value={prioridade} field="prioridade" />
-                      <ViewField label="Impacto" value={impacto} field="impacto" />
-                    </>
+                  {mode === "create" || mode === "edit" ? (
+                    <textarea
+                      className="mt-1 w-full px-3 py-2 border rounded-md bg-white text-foreground min-h-[120px]"
+                      value={descricao}
+                      onChange={(e) => onChangeDescricao?.(e.target.value)}
+                      placeholder="Descreva a mudança"
+                    />
                   ) : (
-                    <>
-                      <EditField label="Status" value={status} onChange={onStatusChange} disabled={isFieldDisabled} options={STATUS_OPTIONS} />
-                      <EditField label="Prioridade" value={prioridade} onChange={onPrioridadeChange} disabled={isFieldDisabled} options={PRIORIDADE_OPTIONS} />
-                      <EditField label="Impacto" value={impacto} onChange={onImpactoChange} disabled={isFieldDisabled} options={IMPACTO_OPTIONS} />
-                    </>
+                    <p className="mt-1 text-foreground whitespace-pre-line">{descricao}</p>
                   )}
                 </div>
-              </section>
-
-              <section>
-                {renderSectionTitle('Planejamento')}
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  {isView ? (
-                    <>
-                      <ViewField label="Ambiente" value={ambiente} field="ambiente" />
-                      <ViewField label="Tipo de Execução" value={tipo_execucao} field="tipoExecucao" />
-                      <ViewField label="Origem" value={origem} field="origem" />
-                      <ViewField label="Data Agendada" value={data_agendada} />
-                      <ViewField label="Janela de Execução Início" value={janela_execucao_inicio} />
-                      <ViewField label="Janela de Execução Fim" value={janela_execucao_fim} />
-                    </>
-                  ) : (
-                    <>
-                      <EditField label="Ambiente" value={ambiente} onChange={onAmbienteChange} disabled={isFieldDisabled} options={AMBIENTE_OPTIONS} />
-                      <EditField label="Tipo de Execução" value={tipo_execucao} onChange={onTipoExecucaoChange} disabled={isFieldDisabled} options={TIPO_EXECUCAO_OPTIONS} />
-                      <EditField label="Origem" value={origem} onChange={onOrigemChange} disabled={isFieldDisabled} options={ORIGEM_OPTIONS} />
-                      <EditField label="Data Agendada" value={data_agendada} onChange={onDataAgendadaChange} disabled={isFieldDisabled} inputType="date" />
-                      <EditField label="Janela de Execução Início" value={janela_execucao_inicio} onChange={onJanelaExecucaoInicioChange} disabled={isFieldDisabled} inputType="time" />
-                      <EditField label="Janela de Execução Fim" value={janela_execucao_fim} onChange={onJanelaExecucaoFimChange} disabled={isFieldDisabled} inputType="time" />
-                    </>
+                <div>
+                  <span className="font-medium text-muted-foreground">Solicitante:</span>
+                  {mode === "create" || mode === "edit"? (
+                    <input
+                      className="mt-1 w-full px-3 py-2 border rounded-md bg-white text-foreground"
+                      value={solicitante ?? ""}
+                      onChange={(e) =>
+                        onChangeSolicitante?.(e.target.value)
+                      }
+                      placeholder="Digite o solicitante"
+                    />
+                  ) : (<p className="mt-1 text-foreground">{solicitante}</p>
                   )}
                 </div>
-              </section>
-
-              <section>
-                {renderSectionTitle('Responsáveis')}
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  {isView ? (
-                    <>
-                      <ViewField label="Solicitante" value={solicitante} />
-                      <ViewField label="Responsável de Execução" value={responsavel_execucao} />
-                    </>
+                <div>
+                  <span className="font-medium text-muted-foreground">Responsável Execução:</span>
+                  {mode === "create" || mode === "edit"? (
+                    <input
+                      className="mt-1 w-full px-3 py-2 border rounded-md bg-white text-foreground"
+                      value={responsavel_execucao ?? ""}
+                      onChange={(e) =>
+                        onChangeResponsavelExecucao?.(e.target.value)
+                      }
+                      placeholder="Digite o responsável pela execução"
+                    />
                   ) : (
-                    <>
-                      <EditField label="Solicitante" value={solicitante} onChange={onSolicitanteChange} disabled={isFieldDisabled} />
-                      <EditField label="Responsável de Execução" value={responsavel_execucao} onChange={onResponsavelExecucaoChange} disabled={isFieldDisabled} />
-                    </>
+                    <p className="mt-1 text-foreground">{responsavel_execucao}</p>
                   )}
                 </div>
-              </section>
-
-              <section>
-                {renderSectionTitle('Rollback')}
-                <div className="grid grid-cols-1 gap-4">
-                  {isView ? (
-                    <ViewField label="Plano de Rollback" value={plano_rollback} multiline />
-                  ) : (
-                    <EditField label="Plano de Rollback" value={plano_rollback} onChange={onPlanoRollbackChange} disabled={isFieldDisabled} textarea />
+                  {gmud?.created_at && (
+                    <div>
+                      <span className="font-medium text-muted-foreground">Criado em:</span>
+                      <p className="mt-1 text-foreground text-xs">{formatDate(gmud.created_at)}</p>
+                    </div>
+                  )}
+                  {gmud?.updated_at && (
+                    <div>
+                      <span className="font-medium text-muted-foreground">Atualizado em:</span>
+                      <p className="mt-1 text-foreground text-xs">{formatDate(gmud.updated_at)}</p>
+                    </div>
                   )}
                 </div>
-              </section>
+              </DrawerSection>
 
-              <section>
-                {renderSectionTitle('Checklist')}
-                {itens_checklist.length > 0 ? (
-                  <div className="space-y-3 max-h-60 overflow-y-auto">
-                    {itens_checklist.map((item) => (
-                      <div key={item.id} className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                        <div className="font-medium text-gray-900 mb-2">{item.descricao}</div>
-                        {item.status && (
-                          <div className="text-sm mb-2 text-gray-700">
-                            Status: <span className="font-semibold">{item.status}</span>
-                          </div>
-                        )}
-                        {item.observacao && (
-                          <p className="text-sm text-gray-600 whitespace-pre-wrap">{item.observacao}</p>
-                        )}
-                      </div>
-                    ))}
+              <DrawerSection title="Classificação">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-muted-foreground block mb-1">Status</span>
+                    {mode === "edit" || mode === "create" ? (
+                      <select
+                        className="mt-1 w-full px-3 py-2 border rounded-md bg-white text-foreground"
+                        value={localStatus}
+                        onChange={(e) => {
+                          const v = e.target.value as StatusGMUD;
+                          setLocalStatus(v);
+                          onChangeStatus?.(v);
+                        }}
+                      >
+                        {Object.values(StatusGMUD).map((st) => (
+                          <option key={st} value={st}>
+                            {getStatusGMUDLabel(st)}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <GMUDBadge type="status" value={safeStatus} />
+                    )}
                   </div>
-                ) : (
-                  <div className="p-8 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg text-center">
-                    <p className="text-gray-500 font-medium">Nenhum item no checklist</p>
+                  <div>
+                    <span className="font-medium text-muted-foreground block mb-1">Prioridade</span>
+                    {mode === "edit" || mode === "create" ? (
+                      <select
+                        value={localPrioridade}
+                        onChange={(e) => {
+                          const v = e.target.value as PrioridadeGMUD;
+                          setLocalPrioridade(v);
+                          onChangePrioridade?.(v);
+                        }}
+                        className="mt-1 w-full px-3 py-2 border rounded-md bg-white text-foreground"
+                      >
+                        {Object.values(PrioridadeGMUD).map((p) => (
+                          <option key={p} value={p}>
+                            {getPrioridadeGMUDLabel(p)}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span>{getPrioridadeGMUDLabel(safePrioridade)}</span>
+                    )}
                   </div>
-                )}
-              </section>
+                  <div>
+                    <span className="font-medium text-muted-foreground block mb-1">Impacto</span>
+                    {mode === "edit" || mode === "create" ? (
+                      <select
+                        value={localImpacto}
+                        onChange={(e) => {
+                          const v = e.target.value as ImpactoGMUD;
+                          setLocalImpacto(v);
+                          onChangeImpacto?.(v);
+                        }}
+                        className="mt-1 w-full px-3 py-2 border rounded-md bg-white text-foreground"
+                      >
+                        {Object.values(ImpactoGMUD).map((i) => (
+                          <option key={i} value={i}>
+                            {getImpactoGMUDLabel(i)}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span>{getImpactoGMUDLabel(safeImpacto)}</span>
+                    )}
+                  </div>
+                  <div>
+                    <span className="font-medium text-muted-foreground block mb-1">Ambiente</span>
+                    {mode === "edit" || mode === "create" ? (
+                      <select
+                        value={localAmbiente}
+                        onChange={(e) => {
+                          const v = e.target.value as AmbienteGMUD;
+                          setLocalAmbiente(v);
+                          onChangeAmbiente?.(v);
+                        }}
+                        className="mt-1 w-full px-3 py-2 border rounded-md bg-white text-foreground"
+                      >
+                        {Object.values(AmbienteGMUD).map((amb) => (
+                          <option key={amb} value={amb}>
+                            {getAmbienteGMUDLabel(amb)}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span>{getAmbienteGMUDLabel(safeAmbiente)}</span>
+)}
+                  </div>
+                  <div>
+                    <span className="font-medium text-muted-foreground block mb-1">Tipo Execução</span>
+                    {mode === "edit" || mode === "create" ? (
+                      <select
+                        value={localTipoExecucao}
+                        onChange={(e) => {
+                          const v = e.target.value as TipoExecucaoGMUD;
+                          setLocalTipoExecucao(v);
+                          onChangeTipoExecucao?.(v);
+                        }}
+                        className="mt-1 w-full px-3 py-2 border rounded-md bg-white text-foreground"
+                      >
+                        {Object.values(TipoExecucaoGMUD).map((t) => (
+                          <option key={t} value={t}>
+                            {getTipoExecucaoGMUDLabel(t)}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span>{getTipoExecucaoGMUDLabel(safeTipoExecucao)}</span>
+                    )}
+                  </div>
+                  <div>
+                    <span className="font-medium text-muted-foreground block mb-1">Origem</span>
+                    {mode === "edit" || mode === "create" ? (
+                      <select
+                        value={localOrigem}
+                        onChange={(e) => {
+                          const v = e.target.value as OrigemGMUD;
+                          setLocalOrigem(v);
+                          onChangeOrigem?.(v);
+                        }}
+                        className="mt-1 w-full px-3 py-2 border rounded-md bg-white text-foreground"
+                      >
+                        {Object.values(OrigemGMUD).map((o) => (
+                          <option key={o} value={o}>
+                            {getOrigemGMUDLabel(o)}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span>{getOrigemGMUDLabel(safeOrigem)}</span>
+                    )}
+                  </div>
+                </div>
+              </DrawerSection>
 
-              <section>
-                {renderSectionTitle('Histórico')}
-                {historico.length > 0 ? (
-                  <div className="space-y-3 max-h-80 overflow-y-auto">
-                    {historico.map((item) => (
-                      <div key={item.id} className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                        <div className="text-xs text-gray-500 mb-1">{formatTimestamp(item.timestamp)}</div>
-                        <div className="font-medium text-gray-900 mb-1">{formatValue(item.tipo_evento)}</div>
-                        {item.usuario_nome && <div className="text-sm text-gray-900 mb-2">{item.usuario_nome}</div>}
-                        {item.observacao && <p className="text-sm text-gray-600 whitespace-pre-wrap">{item.observacao}</p>}
-                      </div>
-                    ))}
+              <DrawerSection title="Agenda / Execução">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
+                  {data_agendada && (
+                    <div>
+                      <span className="font-medium text-muted-foreground">Data Agendada:</span>
+                      {mode === "create" || mode === "edit"? (
+                        <input
+                          type="date"
+                          className="mt-1 w-full px-3 py-2 border rounded-md bg-white text-foreground"
+                          value={normalizeDate(data_agendada)}
+                          onChange={(e) =>
+                            onChangeDataAgendada?.(e.target.value)
+                          }
+                        />
+                      ) : (
+                        data_agendada && (
+                          <p className="mt-1 font-mono">{formatDateOnly(data_agendada)}</p>
+                        )
+                      )}
+                    </div>
+                  )}
+                  <div>
+                    <span className="font-medium text-muted-foreground">Janela Início:</span>
+                    {mode === "create" || mode === "edit" ? (
+                      <input
+                        type="datetime-local"
+                        className="mt-1 w-full px-3 py-2 border rounded-md bg-white text-foreground"
+                        value={normalizeDateTime(janela_execucao_inicio)}
+                        onChange={(e) =>
+                          onChangeJanelaExecucaoInicio?.(e.target.value)
+                        }
+                      />
+                    ) : (
+                      <p className="mt-1 font-mono">{formatTime(janela_execucao_inicio)}</p>
+                    )}
                   </div>
-                ) : (
-                  <div className="p-8 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg text-center">
-                    <p className="text-gray-500 font-medium">Nenhum histórico disponível</p>
+                  <div>
+                    <span className="font-medium text-muted-foreground">Janela Fim:</span>
+                    {mode === "create" || mode === "edit" ? (
+                      <input
+                        type="datetime-local"
+                        className="mt-1 w-full px-3 py-2 border rounded-md bg-white text-foreground"
+                        value={normalizeDateTime(janela_execucao_fim)}
+                        onChange={(e) =>
+                          onChangeJanelaExecucaoFim?.(e.target.value)
+                        }
+                      />
+                    ) : (
+                      <p className="mt-1 font-mono">{formatTime(janela_execucao_fim)}</p>
+                    )}
                   </div>
-                )}
-              </section>
+                  <div className="lg:col-span-2">
+                    <span className="font-medium text-muted-foreground">Plano Rollback:</span>
+                      {mode === "create" || mode === "edit"? (
+                        <textarea
+                          className="mt-1 w-full px-3 py-2 border rounded-md bg-white text-foreground min-h-[120px]"
+                          value={plano_rollback ?? ""}
+                          onChange={(e) =>
+                            onChangePlanoRollback?.(e.target.value)
+                          }
+                          placeholder="Descreva o plano de rollback"
+                        />
+                      ) : (
+                        <p className="mt-1 text-foreground whitespace-pre-wrap">{plano_rollback || "Não definido"}</p>
+                      )}
+                  </div>
+                </div>
+              </DrawerSection>
+
+              <DrawerSection title="Checklist">
+                <GMUDChecklist
+                  itens={itens_checklist}
+                  mode={mode}
+                  editingId={editingChecklistItemId ?? null}
+                  onStartEdit={(id) => onChecklistEditStart?.(id)}
+                  onCancelEdit={() => onChecklistEditStart?.(null)}
+                  onAdd={async (descricao) => {
+                    console.log("[DRAWER] onAddChecklistItem disparado", {
+                      gmudId: gmud?.id,
+                      descricao,
+                    });
+
+                    if (!gmud) {
+                      console.log("[DRAWER] gmud undefined — abortando onAdd");
+                      return;
+                    }
+
+                    const result = await onAddChecklistItem?.(gmud.id, descricao);
+
+                    console.log("[DRAWER] retorno do onAddChecklistItem:", result);
+
+                    return result;
+                  }}
+                  onUpdate={async (id, data) => {
+                    console.log("[DRAWER] onUpdateChecklistItem disparado", {
+                        gmudId: gmud?.id,
+                        id,
+                        data,
+                    });
+
+                    if (!gmud) {
+                      console.log("[DRAWER] gmud undefined — abortando onUpdate");
+                      return;
+                    }
+
+                    const result = await onUpdateChecklistItem?.(gmud.id, id, data);
+                    return result;
+                  }}
+                  onDelete={async (id) => {
+                    if (!gmud) return;
+                    return await onDeleteChecklistItem?.(gmud.id, id);
+                  }}
+                  onAfterChange={() => onChecklistUpdated?.()}
+                />
+              </DrawerSection>
+              {/* Resumo */}
+              <div className="mb-4 p-3 bg-accent/10 rounded-md font-medium">
+                <div>Total: {checklistResumo.total}</div>
+                <div>Concluídos: {checklistResumo.concluidos}</div>
+                <div>Pendentes: {checklistResumo.pendentes}</div>
+                <div>Dispensados: {checklistResumo.dispensados}</div>
+                <div>Percentual de conclusão: {checklistResumo.percentual_conclusao}%</div>
+                <div>Pronto: {checklistResumo.pronto ? "Sim" : "Não"}</div>
+              </div>      
+
+              <DrawerSection title="Histórico">
+                <GMUDHistorico eventos={historico} />
+              </DrawerSection>
+
+              {gmud?.eventos_rollback && gmud.eventos_rollback.length > 0 && (
+                <DrawerSection title="Rollbacks">
+                  <GMUDRollback
+                    rollbacks={[]}   // POR ENQUANTO
+                    mode={mode}
+                    editingId={null}
+                    onStartEdit={() => {}}
+                    onCancelEdit={() => {}}
+                    onUpdate={() => {}}
+                    onAdd={() => {}}
+                    onDelete={() => {}}
+                  />
+                </DrawerSection>
+              )}
             </>
           )}
         </div>
 
-        <div className="p-6 border-t border-gray-200 bg-white shrink-0">
-            <div className="flex items-center justify-end gap-3">
-                <button
-                type="button"
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                onClick={onClose}
-                disabled={isActionDisabled}
-                >
-                {closeLabel ?? 'Fechar'}
-                </button>
-                {mode === 'edit' && onDelete && (
-                <button
-                    type="button"
-                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    onClick={onDelete}
-                    disabled={isActionDisabled}
-                >
-                    {deleting ? 'Excluindo...' : deleteLabel ?? 'Excluir'}
-                </button>
-                )}
-                {(mode === 'create' || mode === 'edit') && onSubmit && (
-                <button
-                    type="button"
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    onClick={onSubmit}
-                    disabled={isActionDisabled}
-                >
-                    {saving ? 'Salvando...' : submitLabel ?? 'Salvar'}
-                </button>
-                )}
-            </div>
+        {/* Footer */}
+        <div className="sticky bottom-0 bg-background border-t border-border p-6 pt-0 flex justify-end space-x-3 shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving || deleting}
+            className="px-4 py-2 h-10 border border-input bg-background hover:bg-accent hover:text-accent-foreground text-sm rounded-md transition-colors disabled:pointer-events-none disabled:opacity-50 flex items-center gap-2"
+          >
+            {closeLabel ?? 'Fechar'}
+          </button>
+          {mode !== 'view' && (
+            <button
+              type="button"
+              onClick={onSubmit}
+              disabled={saving || deleting}
+              className="px-4 py-2 h-10 bg-primary text-primary-foreground hover:bg-primary/90 text-sm rounded-md transition-colors disabled:pointer-events-none disabled:opacity-50 flex items-center gap-2"
+            >
+              {saving ? 'Salvando...' : (submitLabel ?? 'Salvar')}
+            </button>
+          )}
+          {onDelete && mode !== 'create' && (
+            <button
+              type="button"
+              onClick={
+                () => {
+                  console.debug("[DRAWER][CHECKLIST][DELETE] disparado", {
+                    gmudId: gmud?.id,
+                    //itemId: item.id,
+                  });
+                  onDelete();
+                }
+              }
+              disabled={deleting || saving}
+              className="px-4 py-2 h-10 bg-destructive text-destructive-foreground hover:bg-destructive/90 text-sm rounded-md transition-colors disabled:pointer-events-none disabled:opacity-50 flex items-center gap-2"
+            >
+              {deleting ? 'Excluindo...' : (deleteLabel ?? 'Excluir')}
+            </button>
+          )}
         </div>
       </div>
-    </>
   );
-}
+};
+
+export default GMUDDrawer;
