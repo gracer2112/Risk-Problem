@@ -60,6 +60,7 @@ export const STATUS_GMUD_LABELS: Record<StatusGMUD, string> = {
   [StatusGMUD.CONCLUIDO]: 'Concluído',
   [StatusGMUD.CANCELADO]: 'Cancelado',
   [StatusGMUD.ROLLBACK]: 'Rollback',
+  [StatusGMUD.PLANEJADO]: 'Planejado', 
 };
 
 export const PRIORIDADE_GMUD_LABELS: Record<PrioridadeGMUD, string> = {

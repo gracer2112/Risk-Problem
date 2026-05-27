@@ -1,36 +1,36 @@
 // src/components/gmud/GMUDFilters.tsx
+// 
 
-import { 
-  ChecklistItemGMUD, 
-  HistoricoItemGMUD, 
-  StatusGMUD, 
-  PrioridadeGMUD, 
-  ImpactoGMUD, 
+'use client';
+
+import { useState } from 'react';
+import {
+  StatusGMUD,
+  PrioridadeGMUD,
+  ImpactoGMUD,
   AmbienteGMUD,
-  OrigemGMUD,
-  TipoExecucaoGMUD
-} from "@/types/gmud";
+} from '@/types/gmud';
 
-export type GMUDFiltersProps = {
-  status?: StatusGMUD;
-  prioridade?: PrioridadeGMUD;
-  impacto?: ImpactoGMUD;
-  ambiente?: AmbienteGMUD;
-  busca?: string;
-  loading?: boolean;
-  disabled?: boolean;
-  onStatusChange?: (value: StatusGMUD | '') => void;
-  onPrioridadeChange?: (value: PrioridadeGMUD|'') => void;
-  onImpactoChange?: (value: ImpactoGMUD|'') => void;
-  onAmbienteChange?: (value: AmbienteGMUD|'') => void;
-  onBuscaChange?: (value: string) => void;
-  onApplyFilters?: () => void;
-  onClearFilters?: () => void;
-};
+import type { GMUDListFilters } from '@/services/api.gmud';
 
-type Option<T extends string = string> = {
+type Option<T extends string> = {
   value: T;
   label: string;
+};
+
+type FiltersDraft = {
+  status: StatusGMUD | '';
+  prioridade: PrioridadeGMUD | '';
+  impacto: ImpactoGMUD | '';
+  ambiente: AmbienteGMUD | '';
+  busca: string;
+};
+
+export type GMUDFiltersProps = {
+  loading?: boolean;
+  disabled?: boolean;
+  onApplyFilters?: (filters: GMUDListFilters) => void;
+  onClearFilters?: () => void;
 };
 
 const statusOptions: Option<StatusGMUD | ''>[] = [
@@ -69,132 +69,174 @@ const ambienteOptions: Option<AmbienteGMUD | ''>[] = [
   { value: AmbienteGMUD.PRODUCAO, label: 'Produção' },
 ];
 
-export default function GMUDFilters(props: GMUDFiltersProps) {
-  const {
-    status,
-    prioridade,
-    impacto,
-    ambiente,
-    busca,
-    loading = false,
-    disabled = false,
-    onStatusChange,
-    onPrioridadeChange,
-    onImpactoChange,
-    onAmbienteChange,
-    onBuscaChange,
-    onApplyFilters,
-    onClearFilters,
-  } = props;
+export default function GMUDFilters({
+  loading = false,
+  disabled = false,
+  onApplyFilters,
+  onClearFilters,
+}: GMUDFiltersProps) {
+  const [draft, setDraft] = useState<FiltersDraft>({
+    status: '',
+    prioridade: '',
+    impacto: '',
+    ambiente: '',
+    busca: '',
+  });
 
-  const isDisabled = loading || disabled;
+  const isDisabled = disabled || loading;
 
-  const commonInputClass =
-    'block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 focus:border-blue-600 sm:text-sm sm:leading-6 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed';
+  const handleApply = () => {
+    onApplyFilters?.({
+      status: draft.status === '' ? undefined : draft.status,
+      prioridade: draft.prioridade === '' ? undefined : draft.prioridade,
+      impacto: draft.impacto === '' ? undefined : draft.impacto,
+      ambiente: draft.ambiente === '' ? undefined : draft.ambiente,
+      busca: draft.busca.trim() || undefined,
+    });
+  };
 
-  const labelClass = 'block text-sm font-medium text-gray-700 mb-2';
+  const handleClear = () => {
+    setDraft({
+      status: '',
+      prioridade: '',
+      impacto: '',
+      ambiente: '',
+      busca: '',
+    });
+    onClearFilters?.();
+  };
 
   return (
     <div className="bg-white border border-gray-200 shadow-sm rounded-lg p-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
-        {/* Status */}
         <div>
-          <label className={labelClass}>Status</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Status
+          </label>
           <select
-            value={status ?? ''}
-            onChange={(e) => onStatusChange?.(e.target.value as StatusGMUD | '')}
+            value={draft.status}
+            onChange={(e) =>
+              setDraft((prev) => ({
+                ...prev,
+                status: e.target.value as FiltersDraft['status'],
+              }))
+            }
             disabled={isDisabled}
-            className={commonInputClass}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
           >
             {statusOptions.map((option) => (
-              <option key={option.value} value={option.value}>
+              <option key={String(option.value)} value={option.value}>
                 {option.label}
               </option>
             ))}
           </select>
         </div>
 
-        {/* Prioridade */}
         <div>
-          <label className={labelClass}>Prioridade</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Prioridade
+          </label>
           <select
-            value={prioridade ?? ''}
-            onChange={(e) => onPrioridadeChange?.(e.target.value as PrioridadeGMUD | '')}
+            value={draft.prioridade}
+            onChange={(e) =>
+              setDraft((prev) => ({
+                ...prev,
+                prioridade: e.target.value as FiltersDraft['prioridade'],
+              }))
+            }
             disabled={isDisabled}
-            className={commonInputClass}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
           >
             {prioridadeOptions.map((option) => (
-              <option key={option.value} value={option.value}>
+              <option key={String(option.value)} value={option.value}>
                 {option.label}
               </option>
             ))}
           </select>
         </div>
 
-        {/* Impacto */}
         <div>
-          <label className={labelClass}>Impacto</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Impacto
+          </label>
           <select
-            value={impacto || ''}
-            onChange={(e) => onImpactoChange?.(e.target.value as ImpactoGMUD | '')}
+            value={draft.impacto}
+            onChange={(e) =>
+              setDraft((prev) => ({
+                ...prev,
+                impacto: e.target.value as FiltersDraft['impacto'],
+              }))
+            }
             disabled={isDisabled}
-            className={commonInputClass}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
           >
             {impactoOptions.map((option) => (
-              <option key={option.value} value={option.value}>
+              <option key={String(option.value)} value={option.value}>
                 {option.label}
               </option>
             ))}
           </select>
         </div>
 
-        {/* Ambiente */}
         <div>
-          <label className={labelClass}>Ambiente</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Ambiente
+          </label>
           <select
-            value={ambiente || ''}
-            onChange={(e) => onAmbienteChange?.(e.target.value as AmbienteGMUD | '')}
+            value={draft.ambiente}
+            onChange={(e) =>
+              setDraft((prev) => ({
+                ...prev,
+                ambiente: e.target.value as FiltersDraft['ambiente'],
+              }))
+            }
             disabled={isDisabled}
-            className={commonInputClass}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
           >
             {ambienteOptions.map((option) => (
-              <option key={option.value} value={option.value}>
+              <option key={String(option.value)} value={option.value}>
                 {option.label}
               </option>
             ))}
           </select>
         </div>
 
-        {/* Busca */}
         <div>
-          <label className={labelClass}>Busca</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Busca
+          </label>
           <input
             type="text"
-            value={busca || ''}
-            onChange={(e) => onBuscaChange?.(e.target.value)}
-            placeholder="Digite sua busca"
+            value={draft.busca}
+            onChange={(e) =>
+              setDraft((prev) => ({
+                ...prev,
+                busca: e.target.value,
+              }))
+            }
+            placeholder="Digite o termo de busca..."
             disabled={isDisabled}
-            className={commonInputClass}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
           />
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-200 justify-end">
+      <div className="flex flex-col sm:flex-row gap-3 justify-end">
         <button
           type="button"
-          onClick={onClearFilters}
+          onClick={handleClear}
           disabled={isDisabled}
-          className="flex-1 sm:w-auto sm:flex-none px-6 py-2.5 bg-gray-100 text-gray-900 text-sm font-medium rounded-md shadow-sm hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+          className="rounded-md bg-gray-200 px-6 py-2.5 font-medium text-gray-800 transition-colors hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Limpar
+          Limpar Filtros
         </button>
         <button
           type="button"
-          onClick={onApplyFilters}
+          onClick={handleApply}
           disabled={isDisabled}
-          className="flex-1 sm:w-auto sm:flex-none px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+          className="rounded-md bg-blue-600 px-6 py-2.5 font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Aplicar filtros
+          {loading ? 'Aplicando...' : 'Aplicar filtros'}
         </button>
       </div>
     </div>

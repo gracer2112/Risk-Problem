@@ -8,11 +8,13 @@ import {
   GMUDKPIs,
   PayloadTransicaoStatusGMUD,
   PayloadRegistrarRollbackGMUD,
+  PayloadChecklistItemGMUD,
 } from '@/types/gmud';
 import type { GMUDListResponse, GMUDHistoryResponse } from '@/services/gmud.mapper';
 import { mapApiGMUDToEntity, mapApiGMUDListResponse, mapApiGMUDKPIs, mapPayloadCriarGMUDToApi, mapPayloadAtualizarGMUDToApi, mapPayloadTransicaoStatusGMUDToApi, mapPayloadRegistrarRollbackGMUDToApi } from '@/services/gmud.mapper';
 
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? '').trim();
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export interface GMUDListResult {
   items: GMUDItemListagem[];
@@ -97,8 +99,8 @@ function buildUrl(projectId: string, suffix?: string): string {
   }
 
   const path = normalizedSuffix
-    ? `/api/projects/${normalizedProjectId}/gmud/${normalizedSuffix}`
-    : `/api/projects/${normalizedProjectId}/gmud`;
+    ? `/projects/${normalizedProjectId}/gmud/${normalizedSuffix}`
+    : `/projects/${normalizedProjectId}/gmud`;
 
   if (!normalizedBase) {
     return path;
@@ -159,6 +161,12 @@ export const gmudService = {
       'Não foi possível carregar a lista de GMUD.',
     );
 
+    // 🔍 LOG DIAGNÓSTICO OFICIAL
+    console.groupCollapsed(`[GMUD][LIST] Resposta do backend → ${url}`);
+    console.log('JSON cru:', response);
+    console.log('Tipo:', Array.isArray(response) ? 'ARRAY' : typeof response);
+    console.log('Keys de nível 1:', response ? Object.keys(response) : 'N/A');
+    console.groupEnd();
     return mapApiGMUDListResponse(response);
   },
 
@@ -306,5 +314,131 @@ export const gmudService = {
 
       throw new Error(message);
     }
+  },
+
+// -------------------------------------------------------------------------------
+// Funções do checklist — versão com debug inteligente
+// -------------------------------------------------------------------------------
+  async addChecklistItem(
+    projectId: string,
+    gmudId: string,
+    payload: PayloadChecklistItemGMUD
+  ): Promise<void> {
+
+    const url = buildUrl(projectId, `${ensureItemId(gmudId)}/checklist`);
+
+    // DEBUG de ida
+    console.debug("[API][CHECKLIST][ADD][REQUEST]", {
+      url,
+      method: "POST",
+      payload,
+      projectId,
+      gmudId
+    });
+
+    try {
+      const result = await requestJson<void>(
+        url,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+        "Não foi possível adicionar o item do checklist."
+      );
+
+      // DEBUG de volta
+      console.debug("[API][CHECKLIST][ADD][RESPONSE]", result);
+    } catch (err) {
+      console.error("[API][CHECKLIST][ADD][ERROR]", err);
+      throw err;
+    }
+  },
+
+  async updateChecklistItem(
+    projectId: string,
+    gmudId: string,
+    itemId: string,
+    payload: PayloadChecklistItemGMUD
+  ): Promise<void> {
+    
+    const url = buildUrl(
+      projectId,
+      `${ensureItemId(gmudId)}/checklist/${ensureItemId(itemId)}`
+    );
+
+    // DEBUG de ida
+    console.debug("[API][CHECKLIST][UPDATE][REQUEST]", {
+      url,
+      method: "PUT",
+      payload,
+      projectId,
+      gmudId,
+      itemId
+    });
+
+    try {
+      const result = await requestJson<void>(
+        url,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+        "Não foi possível atualizar o item do checklist."
+      );
+
+      // DEBUG de volta
+      console.debug("[API][CHECKLIST][UPDATE][RESPONSE]", result);
+    } catch (err) {
+      console.error("[API][CHECKLIST][UPDATE][ERROR]", err);
+      throw err;
+    }
+  },
+
+  async deleteChecklistItem(
+    projectId: string,
+    gmudId: string,
+    itemId: string
+  ): Promise<void> {
+
+    const url = buildUrl(
+      projectId,
+      `${ensureItemId(gmudId)}/checklist/${ensureItemId(itemId)}`
+    );
+
+    // DEBUG de ida
+    console.debug("[API][CHECKLIST][DELETE][REQUEST]", {
+      url,
+      method: "DELETE",
+      projectId,
+      gmudId,
+      itemId
+    });
+
+    const response = await fetch(url, { method: "DELETE" });
+
+    if (!response.ok) {
+
+      // DEBUG de volta (erro)
+      const raw = await response.text().catch(() => "");
+      console.error("[API][CHECKLIST][DELETE][ERROR_RAW]", raw);
+
+      let message = "Não foi possível excluir o item do checklist.";
+      try {
+        const data = JSON.parse(raw);
+        message =
+          data?.message || data?.detail || data?.error || message;
+      } catch {
+        // mantém a mensagem padrão
+      }
+
+      throw new Error(message);
+    }
+
+    // DEBUG de volta (sucesso)
+    console.debug("[API][CHECKLIST][DELETE][RESPONSE]", {
+      status: response.status,
+    });
   },
 };

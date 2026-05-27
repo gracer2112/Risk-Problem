@@ -2,23 +2,33 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type {
+import {
   GMUDResponseDTO as GMUDEntity,
   GMUDListItemResponseDTO as GMUDItemListagem,
   CriarGMUDRequestDTO as PayloadCriarGMUD,
   AtualizarGMUDRequestDTO as PayloadAtualizarGMUD,
   GMUDKPIs,
   PayloadTransicaoStatusGMUD,
-  PayloadRegistrarRollbackGMUD
+  PayloadRegistrarRollbackGMUD,
+  PrioridadeGMUD,
+  ImpactoGMUD,
+  AmbienteGMUD,
+  TipoExecucaoGMUD,
+  OrigemGMUD,
+  StatusGMUD,
+  PayloadChecklistItemGMUD,
+  StatusChecklistGMUD,
+  GMUDEvent,
 } from '@/types/gmud';
 
 import {
   gmudService,
   type GMUDHistoryResult,
   type GMUDListFilters,
+
 } from '@/services/api.gmud';
 
-import { mapEntityToGMUDListItem } from '@/services/gmud.mapper';
+import { mapGMUDEventToTimelineItem, mapEntityToGMUDListItem, TimelineItem } from '@/services/gmud.mapper';
 
 export type UseGMUDReturn = {
   items: GMUDItemListagem[];
@@ -29,6 +39,12 @@ export type UseGMUDReturn = {
   historyByItemId: Record<string, GMUDHistoryResult>;
   historyLoadingItemId: string | null;
   historyError: string | null;
+  prioridade: PrioridadeGMUD | undefined;
+  impacto: ImpactoGMUD | undefined;
+  ambiente: AmbienteGMUD | undefined;
+  tipoExecucao: TipoExecucaoGMUD | undefined;
+  origem: OrigemGMUD | undefined;
+  status: StatusGMUD | undefined;
   loadItems: (filters?: GMUDListFilters) => Promise<void>;
   loadItemById: (itemId: string) => Promise<GMUDEntity>;
   loadKPIs: () => Promise<void>;
@@ -40,6 +56,15 @@ export type UseGMUDReturn = {
   deleteItem: (itemId: string) => Promise<void>;
   clearError: () => void;
   clearHistory: (itemId?: string) => void;
+  onChangePrioridade: (value: PrioridadeGMUD) => void;
+  onChangeImpacto: (value: ImpactoGMUD) => void;
+  onChangeAmbiente: (value: AmbienteGMUD) => void;
+  onChangeTipoExecucao: (value: TipoExecucaoGMUD) => void;
+  onChangeOrigem: (value: OrigemGMUD) => void;
+  onChangeStatus: (value: StatusGMUD) => void;
+  onAddChecklistItem: (gmudId: string, descricao: string) => Promise<void>;
+  onUpdateChecklistItem: (gmudId: string, itemId: string, payload: PayloadChecklistItemGMUD) => Promise<void>;
+  onDeleteChecklistItem: (gmudId: string, itemId: string) => Promise<void>;
 };
 
 function getErrorMessage(error: unknown, fallback: string): string {
@@ -59,6 +84,13 @@ export function useGMUD(projectId?: string | null): UseGMUDReturn {
   const [historyByItemId, setHistoryByItemId] = useState<Record<string, GMUDHistoryResult>>({});
   const [historyLoadingItemId, setHistoryLoadingItemId] = useState<string | null>(null);
   const [historyError, setHistoryError] = useState<string | null>(null);
+  const [prioridade, setPrioridade] = useState<PrioridadeGMUD | undefined>(undefined);
+  const [impacto, setImpacto] = useState<ImpactoGMUD | undefined>(undefined);
+  const [ambiente, setAmbiente] = useState<AmbienteGMUD | undefined>(undefined);
+  const [tipoExecucao, setTipoExecucao] = useState<TipoExecucaoGMUD | undefined>(undefined);
+  const [origem, setOrigem] = useState<OrigemGMUD | undefined>(undefined);
+  const [status, setStatus] = useState<StatusGMUD | undefined>(undefined);
+  const [historico, setHistorico] = useState<TimelineItem[]>([]);
 
   const latestLoadItemsRequestId = useRef(0);
   const itemsRef = useRef<GMUDItemListagem[]>([]);
@@ -256,21 +288,40 @@ export function useGMUD(projectId?: string | null): UseGMUDReturn {
 
     try {
       const safeProjectId = requireProjectId();
-      const createdEntity = await gmudService.create(safeProjectId, payload);
+      const finalPayload: PayloadCriarGMUD = {
+        ...payload,
+        prioridade: prioridade ?? PrioridadeGMUD.BAIXA,
+        impacto: impacto ?? ImpactoGMUD.BAIXO,
+        ambiente: ambiente ?? AmbienteGMUD.DESENVOLVIMENTO,
+        tipo_execucao: tipoExecucao ?? TipoExecucaoGMUD.MANUAL,
+        origem: origem ?? OrigemGMUD.INTERNA,
+        status: status ?? StatusGMUD.RASCUNHO,
+      };
+      const createdEntity = await gmudService.create(safeProjectId, finalPayload);
       upsertListItem(createdEntity);
       return createdEntity;
     } catch (err) {
       setHandledError(err, 'Não foi possível criar a GMUD.');
       throw err;
     }
-  }, [requireProjectId, setHandledError, upsertListItem]);
+  }, [prioridade, impacto, ambiente, tipoExecucao, origem, status, requireProjectId, setHandledError, upsertListItem]);
 
   const updateItem = useCallback(async (itemId: string, payload: PayloadAtualizarGMUD): Promise<GMUDEntity> => {
     setError(null);
 
     try {
       const safeProjectId = requireProjectId();
-      const updatedEntity = await gmudService.update(safeProjectId, itemId, payload);
+              const finalPayload: PayloadAtualizarGMUD = {
+            ...payload,
+            prioridade: prioridade ?? payload.prioridade,
+            impacto: impacto ?? payload.impacto,
+            ambiente: ambiente ?? payload.ambiente,
+            tipo_execucao: tipoExecucao ?? payload.tipo_execucao,
+            origem: origem ?? payload.origem,
+            status: status ?? payload.status,
+        };
+
+      const updatedEntity = await gmudService.update(safeProjectId, itemId, finalPayload);
       upsertListItem(updatedEntity);
       invalidateHistory(itemId);
       return updatedEntity;
@@ -278,7 +329,7 @@ export function useGMUD(projectId?: string | null): UseGMUDReturn {
       setHandledError(err, 'Não foi possível atualizar a GMUD.');
       throw err;
     }
-  }, [invalidateHistory, requireProjectId, setHandledError, upsertListItem]);
+  }, [prioridade, impacto, ambiente, tipoExecucao, origem, status, invalidateHistory, requireProjectId, setHandledError, upsertListItem]);
 
   const transitionStatus = useCallback(async (
     itemId: string,
@@ -341,6 +392,54 @@ export function useGMUD(projectId?: string | null): UseGMUDReturn {
     }
   }, [clearHistory, requireProjectId, setHandledError]);
 
+  const onAddChecklistItem = useCallback(async (gmudId: string, descricao: string): Promise<void> => {
+    setError(null);
+    try {
+      const safeProjectId = requireProjectId();
+      await gmudService.addChecklistItem(safeProjectId, gmudId, { 
+        descricao,
+        status: StatusChecklistGMUD.PENDENTE,
+       });
+      await loadItemById(gmudId);
+
+    } catch (err) {
+      setHandledError(err, 'Erro ao adicionar item do checklist.');
+      throw err;
+    }
+  }, [requireProjectId, setHandledError, loadItemById]);
+
+  const onUpdateChecklistItem = useCallback(async (gmudId: string, itemId: string, payload: PayloadChecklistItemGMUD): Promise<void> => {
+    setError(null);
+    try {
+      const safeProjectId = requireProjectId();
+      await gmudService.updateChecklistItem(safeProjectId, gmudId, itemId, payload);
+      await loadItemById(gmudId);
+    } catch (err) {
+      setHandledError(err, 'Erro ao atualizar item do checklist.');
+      throw err;
+    }
+  }, [requireProjectId, setHandledError, loadItemById]);
+
+  const onDeleteChecklistItem = useCallback(async (gmudId: string, itemId: string): Promise<void> => {
+    setError(null);
+    try {
+      const safeProjectId = requireProjectId();
+      await gmudService.deleteChecklistItem(safeProjectId, gmudId, itemId);
+      await loadItemById(gmudId);
+    } catch (err) {
+      setHandledError(err, 'Erro ao excluir item do checklist.');
+      throw err;
+    }
+  }, [requireProjectId, setHandledError, loadItemById]);
+
+
+  const onChangePrioridade = (value: PrioridadeGMUD) => setPrioridade(value);
+  const onChangeImpacto = (value: ImpactoGMUD) => setImpacto(value);
+  const onChangeAmbiente = (value: AmbienteGMUD) => setAmbiente(value);
+  const onChangeTipoExecucao = (value: TipoExecucaoGMUD) => setTipoExecucao(value);
+  const onChangeOrigem = (value: OrigemGMUD) => setOrigem(value);
+  const onChangeStatus = (value: StatusGMUD) => setStatus(value);
+
   return {
     items,
     total,
@@ -350,6 +449,18 @@ export function useGMUD(projectId?: string | null): UseGMUDReturn {
     historyByItemId,
     historyLoadingItemId,
     historyError,
+    prioridade,
+    impacto,
+    ambiente,
+    tipoExecucao,
+    origem,
+    status,
+    onChangePrioridade,
+    onChangeImpacto,
+    onChangeAmbiente,
+    onChangeTipoExecucao,
+    onChangeOrigem,
+    onChangeStatus,
     loadItems,
     loadItemById,
     loadKPIs,
@@ -361,5 +472,9 @@ export function useGMUD(projectId?: string | null): UseGMUDReturn {
     deleteItem,
     clearError,
     clearHistory,
+    onAddChecklistItem,
+    onUpdateChecklistItem,
+    onDeleteChecklistItem,
+
   };
 }
