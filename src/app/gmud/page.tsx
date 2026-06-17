@@ -1,11 +1,12 @@
 // src/app/gmud/page.tsx
 
 'use client'
+import { toast, Toaster } from 'sonner';
 
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { useGMUD } from '@/hooks/useGMUD';
 import GMUDHeader from '@/components/gmud/GMUDHeader';
-import GMUDKpis from '@/components/gmud/GMUDKpis';
+import GmudDashboard from '@/components/gmud/GmudDashboard';
 import GMUDFilters from '@/components/gmud/GMUDFilters';
 import type { GMUDTableItem as GMUDTableItemType } from '@/components/gmud/GMUDTable';
 import GMUDTable from '@/components/gmud/GMUDTable';
@@ -383,7 +384,11 @@ export default function GMUDPage() {
     setDrawerLoading(true);
     try {
       const item = await loadItemById(String(id));
-
+      if (!item?.id) {
+          console.error("[DEBUG] Item carregado sem ID — abortando");
+          setDrawerLoading(false);
+          return;
+      }
       setSelectedItem(item);
       setEditingId(String(id));   // <-- SEM usar item.id
       console.log("[DEBUG] Link acionado: modo edit", String(id));
@@ -391,11 +396,14 @@ export default function GMUDPage() {
       console.log("[DEBUG] Abrindo drawer com form carregado:", mapEntityToDrawerForm(item));
       setDrawerMode("edit");
       setDrawerOpen(true);
+      setDrawerLoading(false);
 
     } catch (error) {
-      setDrawerError("Erro ao carregar GMUD para edição.");
-    } finally {
-      setDrawerLoading(false);
+        console.error("[DEBUG] Erro ao carregar item:", error);
+        setDrawerLoading(false);   // ← importante
+        return;                    // ← IMPEDE de abrir o drawer vazio
+//    } finally {
+//      setDrawerLoading(false);
     }
   };
 
@@ -433,7 +441,7 @@ export default function GMUDPage() {
       console.log("[DEBUG] Chamando handleCloseDrawer()");
       handleCloseDrawer();
     } catch (err) {
-        setDrawerError((err as Error)?.message ?? 'Erro ao salvar');
+          const errorMsg = (err as Error)?.message ?? 'Erro ao salvar'; toast.error(errorMsg); setDrawerError(errorMsg);
       } finally {
         setSaving(false);
       }
@@ -462,7 +470,7 @@ export default function GMUDPage() {
       setSelectedItem(null);
       handleCloseDrawer();
     }  catch (err) {
-      setDrawerError((err as Error)?.message ?? 'Erro ao excluir item');
+          const errorMsg = (err as Error)?.message ?? 'Erro ao excluir item'; toast.error(errorMsg); setDrawerError(errorMsg);
     } finally {
       setDeleting(false);
     }
@@ -540,7 +548,7 @@ export default function GMUDPage() {
         setDrawerForm({} as any);
       }
     } catch (error: unknown) {
-      setDrawerError('Erro ao excluir o item');
+          const errorMsg = 'Erro ao excluir o item'; toast.error(errorMsg); setDrawerError(errorMsg);
     } finally {
       setDrawerLoading(false);
     }
@@ -558,7 +566,7 @@ export default function GMUDPage() {
       setDrawerOpen(true);
     } catch (err) {
       console.error('Erro ao carregar item:', err);
-      setDrawerError((err as Error)?.message ?? 'Erro ao carregar o item');
+          const errorMsg = (err as Error)?.message ?? 'Erro ao carregar o item'; toast.error(errorMsg); setDrawerError(errorMsg);
     } finally {
       setDrawerLoading(false);
     }
@@ -683,6 +691,7 @@ export default function GMUDPage() {
 
   return (
     <>
+        <Toaster richColors position="top-right" />
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 space-y-6">
         {selectedProjectId && hasGMUD && error && (
           <div className="bg-red-50 border border-red-200 text-red-800 px-6 py-4 rounded-lg">
@@ -737,16 +746,7 @@ export default function GMUDPage() {
         </div>
        
         {selectedProjectId && hasGMUD && (
-        <GMUDKpis
-          total={kpis?.total ?? 0}
-          emRevisao={kpis?.em_revisao ?? 0}
-          agendadas={kpis?.agendadas ?? 0}
-          emExecucao={kpis?.em_execucao ?? 0}
-          concluidas={kpis?.concluidas ?? 0}
-          rollbacks={kpis?.rollbacks ?? 0}
-          loading={loadKPIs === undefined || loading}
-        />
-        )}
+        <>
         <GMUDFilters
           loading={loading}
           disabled={!activeProjectId || loading}
@@ -761,6 +761,13 @@ export default function GMUDPage() {
           onEdit={(id) => void handleEdit(id)}
           onDelete={(id) => void handleDelete(id)}
         />
+        <GmudDashboard
+          kpis={kpis}
+          loading={loading}
+          error={error}
+        />
+        </>
+      )}
       </div>
       {drawerOpen && (
             console.debug("[PAGE][DRAWER] Montando Drawer com props:", {

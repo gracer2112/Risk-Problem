@@ -253,6 +253,32 @@ export function mapApiGMUDListResponse(response: GMUDListResponse): { items: GMU
 
 export function mapApiGMUDKPIs(api: unknown): GMUDKPIs {
   const record = asRecord(api);
+
+  // Extrair dados do formato rico (novo backend)
+  const porStatus = record.por_status as Record<string, number> | undefined;
+  const porPrioridade = record.por_prioridade as Record<string, number> | undefined;
+  const mensal = record.mensal as { mes: string; total: number }[] | undefined;
+  const topSistemas = record.top_sistemas as { sistema: string; total: number }[] | undefined;
+  const tempoMedio = record.tempo_medio_execucao as number | null | undefined;
+
+  // Se tem por_status, deriva campos planos de lá (formato rico)
+  if (porStatus) {
+    return {
+      total: Object.values(porStatus).reduce((a, b) => a + b, 0),
+      em_revisao: porStatus['em_revisao'] ?? 0,
+      agendadas: 0,
+      em_execucao: porStatus['em_execucao'] ?? 0,
+      concluidas: porStatus['concluido'] ?? 0,
+      rollbacks: porStatus['rollback'] ?? 0,
+      por_status: porStatus,
+      por_prioridade: porPrioridade ?? {},
+      mensal: mensal ?? [],
+      top_sistemas: topSistemas ?? [],
+      tempo_medio_execucao: tempoMedio ?? null,
+    };
+  }
+
+  // Fallback legado (formato plano)
   return {
     total: getNumber(record, 'total'),
     em_revisao: getNumber(record, 'em_revisao', 'in_review'),
@@ -260,6 +286,11 @@ export function mapApiGMUDKPIs(api: unknown): GMUDKPIs {
     em_execucao: getNumber(record, 'em_execucao', 'in_execution'),
     concluidas: getNumber(record, 'concluidas', 'completed'),
     rollbacks: getNumber(record, 'rollbacks', 'rollback_count'),
+    por_status: {},
+    por_prioridade: {},
+    mensal: [],
+    top_sistemas: [],
+    tempo_medio_execucao: null,
   };
 }
 

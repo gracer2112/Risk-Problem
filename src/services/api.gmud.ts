@@ -109,11 +109,16 @@ function buildUrl(projectId: string, suffix?: string): string {
   return `${normalizedBase}${path}`;
 }
 
-async function parseJsonSafely(response: Response): Promise<unknown | null> {
+type ParseResult<T = unknown> = 
+  | { success: true; data: T }
+  | { success: false };
+
+async function parseJsonSafely<T = unknown>(response: Response): Promise<ParseResult<T>> {
   try {
-    return await response.json();
+    const data = await response.json() as T;
+    return { success: true, data };
   } catch {
-    return null;
+    return { success: false };
   }
 }
 
@@ -124,12 +129,13 @@ async function requestJson<T>(
 ): Promise<T> {
   const response = await fetch(url, options);
 
+  // ── Caso 1: HTTP erro ──
   if (!response.ok) {
-    const data = await parseJsonSafely(response);
+    const result = await parseJsonSafely<Record<string, unknown>>(response);
     let message = fallbackMessage;
 
-    if (data && typeof data === 'object') {
-      const record = data as Record<string, unknown>;
+    if (result.success) {
+      const record = result.data;
 
       if (typeof record.message === 'string' && record.message.trim()) {
         message = record.message;
@@ -143,13 +149,14 @@ async function requestJson<T>(
     throw new Error(message);
   }
 
-  const data = await parseJsonSafely(response);
+  // ── Caso 2: HTTP 200 — faz o parse ──
+  const result = await parseJsonSafely<T>(response);
 
-  if (data === null) {
+  if (!result.success) {
     throw new Error(fallbackMessage);
   }
 
-  return data as T;
+  return result.data;
 }
 
 export const gmudService = {
