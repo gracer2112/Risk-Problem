@@ -33,7 +33,12 @@ import {
 } from '@/services/project-catalog.mapper';
 
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+//  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+  typeof window !== 'undefined' && 
+  window.location.hostname !== 'localhost' && 
+  window.location.hostname !== '127.0.0.1'
+    ? '/api'  // via ngrok/proxy → caminho relativo
+    : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api');
 
 function isBrowser(): boolean {
   return typeof window !== 'undefined';

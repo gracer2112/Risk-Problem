@@ -379,7 +379,7 @@ const GMUDDrawer: React.FC<Props> = ({
               </DrawerSection>
 
               <DrawerSection title="Classificação">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="font-medium text-muted-foreground block mb-1">Status</span>
                     {mode === "edit" || mode === "create" ? (
@@ -597,13 +597,12 @@ const GMUDDrawer: React.FC<Props> = ({
                       descricao,
                     });
 
-                    if (!gmud) {
-                      console.log("[DRAWER] gmud undefined — abortando onAdd");
+                    if (!gmud?.id) {
+                      console.log("[DRAWER] gmud ou gmud.id inválido — abortando onAdd", { gmud, gmudId: gmud?.id });
                       return;
                     }
 
                     const result = await onAddChecklistItem?.(gmud.id, descricao);
-
                     console.log("[DRAWER] retorno do onAddChecklistItem:", result);
 
                     return result;

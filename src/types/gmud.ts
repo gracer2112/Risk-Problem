@@ -157,13 +157,22 @@ export interface ContextoProjetoGMUD {
 }
 
 export interface GMUDKPIs {
+  // Campos planos (backward compatibility)
   total: number;
   em_revisao: number;
   agendadas: number;
   em_execucao: number;
   concluidas: number;
   rollbacks: number;
+
+  // 🆕 Campos enriquecidos
+  por_status: Record<string, number>;
+  por_prioridade: Record<string, number>;
+  mensal: { mes: string; total: number }[];
+  top_sistemas: { sistema: string; total: number }[];
+  tempo_medio_execucao: number | null;
 }
+
 
 export interface FiltrosGMUD {
   project_id?: ProjetoId;

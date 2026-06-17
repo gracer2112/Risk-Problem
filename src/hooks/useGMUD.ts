@@ -217,21 +217,26 @@ export function useGMUD(projectId?: string | null): UseGMUDReturn {
   }, [projectId, requireProjectId, setHandledError]);
 
   const loadKPIs = useCallback(async (): Promise<void> => {
-    if (!projectId || !projectId.trim()) {
-      setKpis(null);
+      if (!projectId || !projectId.trim()) {
+        console.log('[GMUD][KPIS] Sem projectId, limpando KPIs');
+        setKpis(null);
+        setError(null);
+        return;
+      }
+
       setError(null);
-      return;
-    }
 
-    setError(null);
-
-    try {
-      const safeProjectId = requireProjectId();
-      const response = await gmudService.getKPIs(safeProjectId);
-      setKpis(response);
-    } catch (err) {
-      setHandledError(err, 'Não foi possível carregar os KPIs de GMUD.');
-    }
+      try {
+        const safeProjectId = requireProjectId();
+        console.log('[GMUD][KPIS] Chamando getKPIs para projectId:', safeProjectId);
+        const response = await gmudService.getKPIs(safeProjectId);
+        console.log('[GMUD][KPIS] Resposta recebida:', JSON.stringify(response).substring(0, 500));
+        console.log('[GMUD][KPIS] Chaves:', Object.keys(response as any));
+        setKpis(response);
+      } catch (err) {
+        console.log('[GMUD][KPIS] ERRO capturado:', err);
+        setHandledError(err, 'Não foi possível carregar os KPIs da GMUD.');
+      }
   }, [projectId, requireProjectId, setHandledError]);
 
   const loadItemById = useCallback(async (itemId: string): Promise<GMUDEntity> => {
@@ -401,12 +406,12 @@ export function useGMUD(projectId?: string | null): UseGMUDReturn {
         status: StatusChecklistGMUD.PENDENTE,
        });
       await loadItemById(gmudId);
-
+      await loadKPIs();
     } catch (err) {
       setHandledError(err, 'Erro ao adicionar item do checklist.');
       throw err;
     }
-  }, [requireProjectId, setHandledError, loadItemById]);
+  }, [requireProjectId, setHandledError, loadItemById, loadKPIs]);
 
   const onUpdateChecklistItem = useCallback(async (gmudId: string, itemId: string, payload: PayloadChecklistItemGMUD): Promise<void> => {
     setError(null);
@@ -414,11 +419,12 @@ export function useGMUD(projectId?: string | null): UseGMUDReturn {
       const safeProjectId = requireProjectId();
       await gmudService.updateChecklistItem(safeProjectId, gmudId, itemId, payload);
       await loadItemById(gmudId);
+      await loadKPIs();
     } catch (err) {
       setHandledError(err, 'Erro ao atualizar item do checklist.');
       throw err;
     }
-  }, [requireProjectId, setHandledError, loadItemById]);
+    }, [requireProjectId, setHandledError, loadItemById, loadKPIs]);
 
   const onDeleteChecklistItem = useCallback(async (gmudId: string, itemId: string): Promise<void> => {
     setError(null);
@@ -426,11 +432,12 @@ export function useGMUD(projectId?: string | null): UseGMUDReturn {
       const safeProjectId = requireProjectId();
       await gmudService.deleteChecklistItem(safeProjectId, gmudId, itemId);
       await loadItemById(gmudId);
+      await loadKPIs();
     } catch (err) {
       setHandledError(err, 'Erro ao excluir item do checklist.');
       throw err;
     }
-  }, [requireProjectId, setHandledError, loadItemById]);
+  }, [requireProjectId, setHandledError, loadItemById, loadKPIs]);
 
 
   const onChangePrioridade = (value: PrioridadeGMUD) => setPrioridade(value);

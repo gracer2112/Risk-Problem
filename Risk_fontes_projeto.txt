@@ -6724,6 +6724,30 @@ export const TRANSICOES_PERMITIDAS_GMUD: TransicoesPermitidasGMUD = {
   [StatusGMUD.CANCELADO]: [],
   [StatusGMUD.ROLLBACK]: [StatusGMUD.CONCLUIDO, StatusGMUD.CANCELADO]
 };
+
+export enum GMUDEventoEnum {
+  GMUD_CRIADA = "GMUD_CRIADA",
+  GMUD_ATUALIZADA = "GMUD_ATUALIZADA",
+  STATUS_ALTERADO = "STATUS_ALTERADO",
+  PRIORIDADE_ALTERADA = "PRIORIDADE_ALTERADA",
+  CHECKLIST_ADICIONADO = "CHECKLIST_ADICIONADO",
+  CHECKLIST_EDITADO = "CHECKLIST_EDITADO",
+  CHECKLIST_REMOVIDO = "CHECKLIST_REMOVIDO",
+  ROLLBACK_EXECUTADO = "ROLLBACK_EXECUTADO",
+  CAMPO_EDITADO = "CAMPO_EDITADO"
+}
+
+export interface GMUDEvent {
+  id: string;
+  gmud_id: string;
+  tipo_evento: GMUDEventoEnum;
+  descricao: string;
+  detalhes?: any;
+  usuario: string;
+  data_evento: string;
+}
+
+
 -----Fim do arquivo src\types\gmud.ts-----
 === src\utils\mock-data.ts ===
 import {
@@ -7306,6 +7330,7 @@ export const STATUS_GMUD_LABELS: Record<StatusGMUD, string> = {
   [StatusGMUD.CONCLUIDO]: 'Concluído',
   [StatusGMUD.CANCELADO]: 'Cancelado',
   [StatusGMUD.ROLLBACK]: 'Rollback',
+  [StatusGMUD.PLANEJADO]: 'Planejado', 
 };
 
 export const PRIORIDADE_GMUD_LABELS: Record<PrioridadeGMUD, string> = {
@@ -8456,15 +8481,17 @@ import {
   StatusGMUD,
   PayloadChecklistItemGMUD,
   StatusChecklistGMUD,
+  GMUDEvent,
 } from '@/types/gmud';
 
 import {
   gmudService,
   type GMUDHistoryResult,
   type GMUDListFilters,
+
 } from '@/services/api.gmud';
 
-import { mapEntityToGMUDListItem } from '@/services/gmud.mapper';
+import { mapGMUDEventToTimelineItem, mapEntityToGMUDListItem, TimelineItem } from '@/services/gmud.mapper';
 
 export type UseGMUDReturn = {
   items: GMUDItemListagem[];
@@ -8526,6 +8553,7 @@ export function useGMUD(projectId?: string | null): UseGMUDReturn {
   const [tipoExecucao, setTipoExecucao] = useState<TipoExecucaoGMUD | undefined>(undefined);
   const [origem, setOrigem] = useState<OrigemGMUD | undefined>(undefined);
   const [status, setStatus] = useState<StatusGMUD | undefined>(undefined);
+  const [historico, setHistorico] = useState<TimelineItem[]>([]);
 
   const latestLoadItemsRequestId = useRef(0);
   const itemsRef = useRef<GMUDItemListagem[]>([]);
@@ -8910,6 +8938,7 @@ export function useGMUD(projectId?: string | null): UseGMUDReturn {
     onAddChecklistItem,
     onUpdateChecklistItem,
     onDeleteChecklistItem,
+
   };
 }
 -----Fim do arquivo src\hooks\useGMUD.ts-----
@@ -9455,6 +9484,7 @@ export const gmudService = {
     });
   },
 };
+
 -----Fim do arquivo src\services\api.gmud.ts-----
 === src\services\api.ts ===
 // src/services/api.ts
@@ -10702,7 +10732,8 @@ import {
   GMUDKPIs,
   PayloadTransicaoStatusGMUD,
   PayloadRegistrarRollbackGMUD,
-  StatusChecklistGMUD
+  StatusChecklistGMUD,
+  GMUDEvent 
 } from '@/types/gmud';
 
 import type {
@@ -10737,6 +10768,24 @@ export interface GMUDHistoryResponse {
   items?: unknown[];
   data?: unknown[];
   total?: number;
+}
+
+export interface TimelineItem {
+  id: string;
+  title: string;
+  timestamp: string;
+  details?: any;
+  type: string;
+}
+
+export function mapGMUDEventToTimelineItem(e: GMUDEvent): TimelineItem {
+  return {
+    id: e.id,
+    title: e.descricao,
+    timestamp: e.data_evento,
+    details: e.detalhes ?? null,
+    type: e.tipo_evento
+  };
 }
 
 const DEFAULT_GMUD_TITULO = 'Mudança sem título';
@@ -10962,6 +11011,7 @@ export function mapPayloadAtualizarGMUDToApi(payload: PayloadAtualizarGMUD): Rec
     openproject_project_id: payload.openproject_project_id,
     titulo: payload.titulo,
     descricao: payload.descricao,
+    status: payload.status,
     prioridade: payload.prioridade,
     impacto: payload.impacto,
     ambiente: payload.ambiente,
