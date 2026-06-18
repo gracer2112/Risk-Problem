@@ -225,7 +225,7 @@ export interface GMUDEvent {
   gmud_id: string;
   tipo_evento: GMUDEventoEnum;
   descricao: string;
-  detalhes?: any;
+  detalhes?: Record<string, unknown>; 
   usuario: string;
   data_evento: string;
 }

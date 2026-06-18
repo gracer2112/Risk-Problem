@@ -52,7 +52,7 @@ export interface TimelineItem {
   id: string;
   title: string;
   timestamp: string;
-  details?: any;
+  details?: Record<string, unknown>; 
   type: string;
 }
 
@@ -61,7 +61,7 @@ export function mapGMUDEventToTimelineItem(e: GMUDEvent): TimelineItem {
     id: e.id,
     title: e.descricao,
     timestamp: e.data_evento,
-    details: e.detalhes ?? null,
+    details: e.detalhes,
     type: e.tipo_evento
   };
 }

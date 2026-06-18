@@ -67,7 +67,7 @@ export default function GmudDashboard({
 }: GmudDashboardProps) {
   if (loading) {
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {Array.from({ length: 4 }).map((_, index) => (
           <div
             key={index}
@@ -122,106 +122,115 @@ export default function GmudDashboard({
   const topSistemasData = kpis.top_sistemas ?? [];
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="bg-white rounded-xl p-4 shadow-sm border h-64">
-        <h3 className="text-base font-semibold text-gray-800 mb-4">
+    //<div className="bg-white rounded-xl p-4 shadow-sm border min-h-[300px]">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="bg-white rounded-xl p-4 shadow-sm border h-64 flex flex-col">
+        <h3 className="text-base font-semibold text-gray-800 mb-4 shrink-0">
           GMUDs por Status
         </h3>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={statusData}
-            layout="vertical"
-            margin={{ top: 4, right: 16, bottom: 16, left: 24 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-            <XAxis type="number" />
-            <YAxis
-              dataKey="name"
-              type="category"
-              width={100}
-              tick={{ fontSize: 12 }}
-            />
-            <Tooltip />
-            <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-              {statusData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+        <div className="flex-1 min-h-0">
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart
+              data={statusData}
+              layout="vertical"
+              margin={{ top: 4, right: 4, bottom: 50, left: 1 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+              <XAxis type="number" tick={{ fontSize: 10}} tickMargin={8} />
+              <YAxis
+                dataKey="name"
+                type="category"
+                width={130}
+                tick={{ fontSize: 10}} tickMargin={8}
+              />
+              <Tooltip />
+              <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                {statusData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
-      <div className="bg-white rounded-xl p-4 shadow-sm border h-64">
-        <h3 className="text-base font-semibold text-gray-800 mb-4">
+      <div className="bg-white rounded-xl p-4 shadow-sm border h-64 flex flex-col">
+        <h3 className="text-base font-semibold text-gray-800 mb-4 shrink-0">
           GMUDs por Prioridade
         </h3>
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={priorityData}
-              dataKey="value"
-              nameKey="name"
-              innerRadius={40}
-              outerRadius={75}
-              paddingAngle={2}
-            >
-              {priorityData.map((entry, index) => (
-                <Cell key={`cell-priority-${index}`} fill={entry.color} />
-              ))}
-            </Pie>
-            <Tooltip />
-            <Legend verticalAlign="middle" align="right" layout="vertical" iconType="circle" />
-          </PieChart>
-        </ResponsiveContainer>
+        <div className="flex-1 min-h-0">
+          <ResponsiveContainer width="100%" height={240}>
+            <PieChart margin={{ top: 8, right: 4, bottom: 50, left: 4 }}>
+              <Pie
+                data={priorityData}
+                dataKey="value"
+                nameKey="name"
+                innerRadius={40}
+                outerRadius={75}
+                paddingAngle={2}
+              >
+                {priorityData.map((entry, index) => (
+                  <Cell key={`cell-priority-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend verticalAlign="middle" align="right" layout="vertical" iconType="circle"  wrapperStyle={{ fontSize: 11 }}  />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
-      <div className="bg-white rounded-xl p-4 shadow-sm border h-64">
-        <h3 className="text-base font-semibold text-gray-800 mb-4">
+      <div className="bg-white rounded-xl p-4 shadow-sm border h-64 flex flex-col">
+        <h3 className="text-base font-semibold text-gray-800 mb-4 shrink-0">
           GMUDs por Mês
         </h3>
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart
-            data={monthlyData}
-            margin={{ top: 8, right: 16, bottom: 16, left: 16 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
-            <YAxis tick={{ fontSize: 12 }} />
-            <Tooltip />
-            <Line
-              type="monotone"
-              dataKey="total"
-              stroke="#3B82F6"
-              strokeWidth={2}
-              dot={{ r: 4, fill: '#3B82F6' }}
-              activeDot={{ r: 6 }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+        <div className="flex-1 min-h-0">
+          <ResponsiveContainer width="100%" height={240}>
+            <LineChart
+              data={monthlyData}
+              margin={{ top: 8, right: 4, bottom: 50, left: 4 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="mes" tick={{ fontSize: 10 }} tickMargin={8} />
+              <YAxis tick={{ fontSize: 10 }} tickMargin={8}/>
+              <Tooltip />
+              <Line
+                type="monotone"
+                dataKey="total"
+                stroke="#3B82F6"
+                strokeWidth={2}
+                dot={{ r: 4, fill: '#3B82F6' }}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
-      <div className="bg-white rounded-xl p-4 shadow-sm border h-64">
-        <h3 className="text-base font-semibold text-gray-800 mb-4">
+      <div className="bg-white rounded-xl p-4 shadow-sm border h-64 flex flex-col">
+        <h3 className="text-base font-semibold text-gray-800 mb-4 shrink-0">
           Top Sistemas
         </h3>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={topSistemasData}
-            layout="vertical"
-            margin={{ top: 4, right: 16, bottom: 16, left: 24 }}
-          >
+        <div className="flex-1 min-h-0">
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart
+              data={topSistemasData}
+              layout="vertical"
+              margin={{ top: 4, right: 4, bottom: 50, left: 4 }}
+            >
             <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-            <XAxis type="number" />
+            <XAxis type="number" tick={{ fontSize: 10 }} tickMargin={8} />
             <YAxis
               dataKey="sistema"
               type="category"
               width={120}
-              tick={{ fontSize: 12 }}
+              tick={{ fontSize: 10 }} tickMargin={8}
             />
             <Tooltip />
             <Bar dataKey="total" fill="#3B82F6" radius={[0, 4, 4, 0]} />
           </BarChart>
-        </ResponsiveContainer>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   );
